@@ -1,0 +1,587 @@
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.io.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+
+public class HotelGUI extends JFrame {
+
+    // main
+    private Booking hotelBooking;
+
+
+    // Table parts
+    private JTable roomTable, customerTable, resTable;
+    private DefaultTableModel roomModel, customerModel, resModel;
+
+    // customer parts
+    private JTextField nameInput, surnameInput, emailInput, phonInput;
+
+    //  for reservation
+    private JComboBox<String> customerCombo;
+    private JTextField roomInput; // Changed from JComboBox to JTextField
+    private JTextField resIdInput, checkInInput, checkOutInput;
+
+    public HotelGUI() {
+        hotelBooking = new Booking();
+
+        loadReservationsFromFile();
+
+        // windows
+        setTitle("Garcia Hotel's Booking System");
+        setSize(1200, 700);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        JTabbedPane tabbedPane = new JTabbedPane();
+
+        // rooms tab
+        tabbedPane.addTab("Rooms", listRoomPanel());
+
+        // customer code
+        tabbedPane.addTab("Customer Sign", createCustomerPanel());
+
+        // reserv code
+        tabbedPane.addTab("Create Reservation", createResevPanel());
+
+        //license
+        tabbedPane.addTab("License", licensePanel());
+
+        add(tabbedPane);
+    }
+
+
+    private JPanel listRoomPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // room details
+        String[] columns = {
+                "Room No", "Type", "Level", "Capacity",
+                "Price", "Luxury Fee", "Living Room", "Status"
+        };
+
+        roomModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        roomTable = new JTable(roomModel);
+
+        refRoomTable();
+
+        panel.add(new JScrollPane(roomTable), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void refRoomTable() {
+        roomModel.setRowCount(0);
+
+        for (Room r : hotelBooking.getRooms()) {
+            String type = "Standard";
+            String level = "Normal";
+            String luxuryFee = "0";
+            String livingRoom = "No";
+
+            // take ekstras if room suite
+            if (r instanceof SuiteRoom) {
+                SuiteRoom s = (SuiteRoom) r;
+                type = "Suite";
+                level = s.getSuiteLevel();
+                luxuryFee = s.getLuxuryFee() + " $";
+
+                if (s.hasLivingRoom()) {
+                    livingRoom = "Yes";
+                }
+            }
+
+            String status = "Occupied";
+            if (r.isAvailable()) {
+                status = "Available";
+            }
+
+            // listing rows
+            Object[] row = {
+                    r.getRoomNumber(), type, level, r.getCapacity(),
+                    r.getPrice() + " $", luxuryFee, livingRoom, status
+            };
+            roomModel.addRow(row);
+        }
+    }
+
+
+    private JPanel createCustomerPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        JPanel inputPanel = new JPanel(new GridLayout(5, 2, 10, 10));
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // customer infos
+        inputPanel.add(new JLabel("Name:"));
+        nameInput = new JTextField();
+        inputPanel.add(nameInput);
+
+        inputPanel.add(new JLabel("Surname:"));
+        surnameInput = new JTextField();
+        inputPanel.add(surnameInput);
+
+        inputPanel.add(new JLabel("Email:"));
+        emailInput = new JTextField();
+        inputPanel.add(emailInput);
+
+        inputPanel.add(new JLabel("Phone:"));
+        phonInput = new JTextField();
+        inputPanel.add(phonInput);
+
+        JButton addBtn = new JButton("Add Customer");
+        addBtn.addActionListener(e -> addCustomerAction());
+        inputPanel.add(addBtn);
+
+        JButton removeBtn = new JButton("Remove Customer");
+        removeBtn.addActionListener(e -> deleteCustomerAction());
+        inputPanel.add(removeBtn);
+
+        panel.add(inputPanel, BorderLayout.NORTH);
+
+
+
+        String[] columns = {"Name", "Surname", "Email", "Phone"};
+        customerModel = new DefaultTableModel(columns, 0);
+        customerTable = new JTable(customerModel);
+
+        customerTable.setDefaultEditor(Object.class, null);
+        customerTable.getTableHeader().setReorderingAllowed(false);
+        customerTable.getTableHeader().setResizingAllowed(false);
+        customerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+
+
+        refCustomerTable();
+
+        panel.add(new JScrollPane(customerTable), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void addCustomerAction() {
+        try {
+            // info taker
+            String name = nameInput.getText();
+            String surname = surnameInput.getText();
+            String email = emailInput.getText();
+            String phone = phonInput.getText();
+
+            Customer newCustomer = new Customer(name, surname, email, phone);
+
+            // adding to system
+            hotelBooking.addCustomer(newCustomer);
+            newCustomer.saveToFile(); // ts for saving
+
+            // list uptade
+            refCustomerTable();
+            updateCustomerCombo();
+
+            // clean
+            nameInput.setText("");
+            surnameInput.setText("");
+            emailInput.setText("");
+            phonInput.setText("");
+
+            JOptionPane.showMessageDialog(this, "Customer added.");
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+        }
+    }
+    private void deleteCustomerAction() {
+        int row = customerTable.getSelectedRow();
+
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a customer to delete.");
+            return;
+        }
+
+        String email = customerModel.getValueAt(row, 2).toString();
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Delete selected customer?",
+                "Confirm",
+                JOptionPane.YES_NO_OPTION);
+
+        if (confirm != JOptionPane.YES_OPTION) return;
+
+        Customer target = null;
+        for (Customer c : hotelBooking.getCustomers()) {
+            if (c.getEmail().equalsIgnoreCase(email)) {
+                target = c;
+                break;
+            }
+        }
+
+        if (target != null) {
+            hotelBooking.getCustomers().remove(target);
+            hotelBooking.saveAllCustomersToFile();
+
+            refCustomerTable();
+            updateCustomerCombo();
+            JOptionPane.showMessageDialog(this, "Customer deleted.");
+        }
+    }
+
+
+
+    private void refCustomerTable() {
+        customerModel.setRowCount(0);
+        for (Customer c : hotelBooking.getCustomers()) {
+            customerModel.addRow(new Object[]{c.getName(), c.getSurname(), c.getEmail(), c.getPhone()});
+        }
+    }
+
+
+    // read reservations
+    private void loadReservationsFromFile() {
+        File file = new File("reservations.txt");
+        if (!file.exists()) return;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(",");
+                if (data.length >= 6) {
+                    // find manually
+                    Customer foundC = null;
+                    for (Customer c : hotelBooking.getCustomers()) {
+                        if (c.getName().equals(data[1])) {
+                            foundC = c;
+                            break;
+                        }
+                    }
+
+                    Room foundR = null;
+                    for (Room r : hotelBooking.getRooms()) {
+                        if (r.getRoomNumber().equals(data[2])) {
+                            foundR = r;
+                            break;
+                        }
+                    }
+
+                    if (foundC != null && foundR != null) {
+                        Reservation res = new Reservation(data[0], foundC, foundR,
+                                LocalDate.parse(data[3]), LocalDate.parse(data[4]));
+
+
+                        res.book();
+                        hotelBooking.getReservations().add(res);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error reading res: " + e.getMessage());
+        }
+    }
+
+
+    // resvertaion
+    private JPanel createResevPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        // Inputs
+        JPanel inputPanel = new JPanel(new GridLayout(6, 2, 5, 5));
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        inputPanel.add(new JLabel("Reservation ID:"));
+        resIdInput = new JTextField();
+        inputPanel.add(resIdInput);
+
+        inputPanel.add(new JLabel("Select Customer:"));
+        customerCombo = new JComboBox<>();
+        inputPanel.add(customerCombo);
+
+        inputPanel.add(new JLabel("Room Number:"));
+        roomInput = new JTextField();
+        inputPanel.add(roomInput);
+
+
+        // date inputs
+        inputPanel.add(new JLabel("Check-In (YYYY-MM-DD):"));
+        checkInInput = new JTextField(LocalDate.now().toString());
+        inputPanel.add(checkInInput);
+
+        inputPanel.add(new JLabel("Check-Out (YYYY-MM-DD):"));
+        checkOutInput = new JTextField(LocalDate.now().plusDays(3).toString());
+        inputPanel.add(checkOutInput);
+
+        JButton bookBtn = new JButton("Create Reservation");
+        inputPanel.add(bookBtn);
+
+        // features
+        JPanel btnPanel = new JPanel(new FlowLayout());
+        JButton refreshBtn = new JButton("Refresh");
+        JButton cancelBtn = new JButton("Cancel");
+        JButton payBtn = new JButton("Pay");
+        JButton cleanBtn = new JButton("Clean All");
+
+        btnPanel.add(refreshBtn);
+        btnPanel.add(cancelBtn);
+        btnPanel.add(payBtn);
+        btnPanel.add(cleanBtn);
+        inputPanel.add(btnPanel);
+
+        // actions
+        refreshBtn.addActionListener(e -> updateCustomerCombo());
+        bookBtn.addActionListener(e -> makeReservationAction());
+        cancelBtn.addActionListener(e -> cancelReservationAction());
+        payBtn.addActionListener(e -> makePaymentAction());
+        cleanBtn.addActionListener(e -> cleanReservationsAction());
+
+        panel.add(inputPanel, BorderLayout.NORTH);
+
+        // reservation table
+        String[] columns = {"ID", "Customer", "Room", "Check-In", "Check-Out", "Price", "Status", "Payment"};
+        resModel = new DefaultTableModel(columns, 0);
+        resTable = new JTable(resModel);
+        resTable.setDefaultEditor(Object.class, null);
+        resTable.setTransferHandler(null);
+        resTable.setDragEnabled(false);
+        resTable.getColumnModel().setColumnSelectionAllowed(false);
+        resTable.getTableHeader().setReorderingAllowed(false);
+        resTable.getTableHeader().setResizingAllowed(false);
+        resTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+
+        updateCustomerCombo();
+        refReservationTable();
+
+        panel.add(new JScrollPane(resTable), BorderLayout.CENTER);
+        return panel;
+    }
+
+    //  update dropdowns
+    private void updateCustomerCombo() {
+        customerCombo.removeAllItems();
+        for (Customer c : hotelBooking.getCustomers()) {
+            customerCombo.addItem(c.getName() + " " + c.getSurname());
+        }
+    }
+
+    // entering reservation
+    private void makeReservationAction() {
+        try {
+
+            if (resIdInput.getText().isEmpty() || customerCombo.getSelectedIndex() == -1 || roomInput.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill all fields!");
+                return;
+            }
+
+            Customer cost = hotelBooking.getCustomers().get(customerCombo.getSelectedIndex());
+            String roomNoEntered = roomInput.getText().trim();
+
+            // Manual search
+            Room selectedRoom = null;
+            for (Room r : hotelBooking.getRooms()) {
+                if (r.getRoomNumber().equals(roomNoEntered)) {
+                    selectedRoom = r;
+                    break;
+                }
+            }
+
+            // Check if room exists
+            if (selectedRoom == null) {
+                JOptionPane.showMessageDialog(this, "Room not found!");
+                return;
+            }
+
+            // exception for avaible rooms
+            if (!selectedRoom.isAvailable()) {
+                throw new RoomNotAvailableException("Room " + roomNoEntered + " already taken");
+            }
+
+            Reservation newRes = new Reservation(resIdInput.getText(), cost, selectedRoom,
+                    LocalDate.parse(checkInInput.getText()), LocalDate.parse(checkOutInput.getText()));
+
+            hotelBooking.getReservations().add(newRes);
+            newRes.book(); // calculate price and book
+
+            // save file
+            FileManager.writeReservation(newRes);
+
+            refReservationTable();
+            refRoomTable();
+            JOptionPane.showMessageDialog(this, "Reservation Done! Price: " + newRes.getTotalPrice());
+
+        } catch (RoomNotAvailableException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Room Error", JOptionPane.ERROR_MESSAGE);
+        } catch (DateTimeParseException dt) {
+            JOptionPane.showMessageDialog(this, "Date format must be YYYY-MM-DD");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+        }
+    }
+
+    // cancel logic
+    private void cancelReservationAction() {
+        int row = resTable.getSelectedRow();
+        if (row == -1) return;
+
+        String id = (String) resModel.getValueAt(row, 0);
+
+        // find by ID
+        for (Reservation r : hotelBooking.getReservations()) {
+            if (r.getReservationId().equals(id)) {
+                r.cancel();
+                refReservationTable();
+                refRoomTable();
+                JOptionPane.showMessageDialog(this, "Cancelled.");
+                break;
+            }
+        }
+    }
+
+    // wipe everything
+    private void cleanReservationsAction() {
+        try {
+            // wipe file
+            PrintWriter writer = new PrintWriter("reservations.txt");
+            writer.print("");
+            writer.close();
+
+            // reset rooms
+            for (Room r : hotelBooking.getRooms()) {
+                r.setAvailable(true);
+            }
+
+            // memory clean
+            hotelBooking.getReservations().clear();
+
+            // ui upt
+            refReservationTable();
+            refRoomTable();
+
+            JOptionPane.showMessageDialog(this, "All reservations wiped.");
+
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Error cleaning file: " + e.getMessage());
+        }
+    }
+
+    // payment logic
+    private void makePaymentAction() {
+
+        int row = resTable.getSelectedRow();
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a reservation first.");
+            return;
+        }
+
+        String id = (String) resModel.getValueAt(row, 0);
+        Reservation target = null;
+
+        // find reservation
+        for (Reservation r : hotelBooking.getReservations()) {
+            if (r.getReservationId().equals(id)) {
+                target = r;
+                break;
+            }
+        }
+
+        if (target == null || target.isCancelled()) {
+            JOptionPane.showMessageDialog(this, "Invalid reservation");
+            return;
+        }
+
+        String[] ops = {"Cash", "Card"};
+        int c = JOptionPane.showOptionDialog(this, "Payment method:", "Pay",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, ops, ops[0]);
+
+        Payment p = null;
+
+        try {
+            if (c == 0) { // CASH
+                String in = JOptionPane.showInputDialog("Total: " + target.getTotalPrice() + " Enter amount:");
+                if (in == null) return;
+
+                double cash = Double.parseDouble(in);
+
+                if (cash < target.getTotalPrice()) {
+                    JOptionPane.showMessageDialog(this, "Not enough cash!");
+                    return;
+                }
+
+                double change = cash - target.getTotalPrice();
+
+                JOptionPane.showMessageDialog(this,
+                        "Payment successful!\nChange: " + change + "$");
+
+                p = new CashPayment(target.getTotalPrice(), "P-" + id,
+                        LocalDate.now().toString(), cash);
+
+        } else if (c == 1) { // Card
+                String no = JOptionPane.showInputDialog("Card No:");
+                String holder = JOptionPane.showInputDialog("Holder:");
+                String exp = JOptionPane.showInputDialog("Expire Date (MM/YY):");
+
+                if (no != null && holder != null && exp != null) {
+                    p = new CreditCardPayment(target.getTotalPrice(), "P-" + id,
+                            LocalDate.now().toString(), no.trim(), holder.trim(), exp.trim());
+                }
+            }
+
+            if (p != null) {
+                if (p.processPayment()) {
+                    target.makePayment(p);
+                    refReservationTable();
+                    JOptionPane.showMessageDialog(this, "Payment successful!");
+                } else {
+                    JOptionPane.showMessageDialog(this, "Payment failed. Invalid card information.");
+                }
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+
+        }
+    }
+
+            // table uptader
+    private void refReservationTable() {
+        resModel.setRowCount(0);
+        for (Reservation r : hotelBooking.getReservations()) {
+
+            String st = "Pending";
+            if (r.isCancelled()) st = "Cancelled";
+            else if (r.isBooked()) st = "Booked";
+
+            String pay = "Unpaid";
+            if (r.getPayment() != null && r.getPayment().isCompleted()) {
+                pay = "Paid";
+            }
+
+            Object[] row = {
+                    r.getReservationId(), r.getCustomer().getName(), r.getRoom().getRoomNumber(),
+                    r.getCheckInDate(), r.getCheckOutDate(), r.getTotalPrice(), st, pay
+            };
+            resModel.addRow(row);
+        }
+    }
+    // licence part
+    private JPanel licensePanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        String licenseText = "Garcia Hotel's Booking System\n\n" +
+                "Version: 2201\n" +
+                "All rights reserved.\n\n" +
+              
+        JTextArea textArea = new JTextArea(licenseText);
+        textArea.setEditable(false);
+        textArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        textArea.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        panel.add(new JScrollPane(textArea), BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new HotelGUI().setVisible(true));
+    }
+}
