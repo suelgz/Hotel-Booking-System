@@ -1,39 +1,136 @@
-## Hotel-Booking-System
+# Hotel Booking Management System
 
-This project is a console based hotel booking system developed in Java using Object-Oriented Programming principles.
+A hotel booking management system built as a portfolio project to demonstrate Java OOP, React frontend development, and full-stack project structure.
 
-It models a simple hotel reservation workflow including customers, rooms, reservations, payments, date handling, exception management, and basic file operations.
+This project originally started as a Java-based hotel reservation system and is currently being converted into a full-stack web application with a React frontend and a Java Spring Boot backend.
 
+## Project Status
+
+The project is currently in progress.
+
+- Java OOP core structure exists
+- React frontend is created
+- Frontend currently uses mock/local data
+- Spring Boot backend structure is being prepared
+- REST API integration will be added step by step
 
 ## Features
 
-- Customer creation with validation and custom exceptions  
-- Room management with different room types  
-- Date-based reservations (check-in & check-out)  
-- Automatic calculation of stay duration  
-- Payment system using polymorphism:
-  - CashPayment
-  - CreditCardPayment
-- Reservation data written to a file for persistence  
-- Clean separation of responsibilities (OOP design)
+### Current Features
+
+- Room management structure
+- Customer management structure
+- Reservation management logic
+- Payment type structure using polymorphism
+- Custom exception handling
+- React dashboard layout
+- Rooms, reservations, and customers pages
+- Clean full-stack folder structure
+
+### Planned Features
+
+- Connect React frontend to Java Spring Boot REST API
+- Add database support with PostgreSQL or SQLite
+- Implement real CRUD operations
+- Add room availability checking
+- Add reservation cancellation and payment updates
+- Improve validation and error handling
+- Add screenshots and deployment link
+
+## Technologies Used
+
+### Frontend
+
+- React
+- JavaScript
+- CSS
+- Vite
+- React Router
+
+### Backend
+
+- Java
+- Spring Boot
+- Maven
+- Object-Oriented Programming
 
 
-## Technologies
+## Project Structure
 
-- Java  
-- OOP 
-- Java Time API  
+```text
+Hotel-Booking-System/
+│
+├── backend/
+│   ├── pom.xml
+│   └── src/
+│       └── main/
+│           └── java/
+│               └── com/
+│                   └── hotel/
+│                       └── booking/
+│                           ├── HotelBookingApplication.java
+│                           └── model/
+│                               ├── Room.java
+│                               ├── Customer.java
+│                               ├── Reservation.java
+│                               ├── Payment.java
+│                               └── ...
+│
+├── frontend/
+│   ├── package.json
+│   ├── index.html
+│   └── src/
+│       ├── components/
+│       ├── pages/
+│       ├── services/
+│       ├── data/
+│       └── styles/
+│
+├── README.md
+├── LICENSE
+└── .gitignore
+```
 
+## Frontend Setup
 
-## How It Works
+To run the frontend locally:
 
-1. Customers are added to the system  
-2. Available rooms are listed  
-3. Reservations are created with dates  
-4. Rooms are booked if available  
-5. Payments are processed  
-6. Reservation details are saved to a file  
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
+Then open the local development URL shown in the terminal:
 
+```text
+http://localhost:5173
+```
 
-Completed and ready for submission.
+## Backend Setup
+
+The backend is being migrated to Spring Boot.
+
+To run the backend after the Spring Boot setup is completed:
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+Expected backend URL:
+
+```text
+http://localhost:8080
+```
+
+Planned API examples:
+
+```text
+GET /api/rooms
+POST /api/rooms
+GET /api/customers
+POST /api/customers
+GET /api/reservations
+POST /api/reservations
+```
