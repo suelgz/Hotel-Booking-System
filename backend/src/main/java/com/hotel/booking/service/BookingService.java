@@ -11,8 +11,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-// Senin Booking.java'ndaki tüm mantık burada.
-// Tek fark: @Service anotasyonu + API için DTO dönüşümleri.
+
 @Service
 public class BookingService {
 
@@ -24,7 +23,6 @@ public class BookingService {
     private final AtomicLong customerIdCounter = new AtomicLong(1);
     private int reservationCounter = 1;
 
-    // Senin Booking.java'ndaki initializeRooms() - birebir aynı odalar
     public BookingService() {
         StandardRoom r1 = new StandardRoom("101", 2, 100.0, true);
         r1.setRoomId(roomIdCounter.getAndIncrement());
@@ -48,7 +46,7 @@ public class BookingService {
         rooms.add(s2);
     }
 
-    // ─── Rooms ────────────────────────────────────────────────────────────────
+    // ─── Rooms
 
     public List<Room> getAllRooms() {
         return new ArrayList<>(rooms);
@@ -76,13 +74,12 @@ public class BookingService {
         return rooms.removeIf(r -> r.getRoomId().equals(roomId));
     }
 
-    // ─── Customers ────────────────────────────────────────────────────────────
+    // ─── Customers 
 
     public List<Customer> getAllCustomers() {
         return new ArrayList<>(customers);
     }
 
-    // Senin orijinal Customer validasyonları burada çalışıyor
     public Customer addCustomer(String name, String surname, String email, String phone)
             throws InvalidCustomerDataException {
         Customer customer = new Customer(name, surname, email, phone);
@@ -106,13 +103,12 @@ public class BookingService {
         return customers.removeIf(c -> c.getCustomerId().equals(customerId));
     }
 
-    // ─── Reservations ─────────────────────────────────────────────────────────
+    // ─── Reservations 
 
     public List<Reservation> getAllReservations() {
         return new ArrayList<>(reservations);
     }
 
-    // Senin Booking.createReservation() ile Reservation.book() birlikte çalışıyor
     public Reservation createReservation(String customerName, String roomNumber,
                                          LocalDate checkIn, LocalDate checkOut)
             throws RoomNotAvailableException, InvalidCustomerDataException {
@@ -122,12 +118,11 @@ public class BookingService {
                 .findFirst()
                 .orElseThrow(() -> new RoomNotAvailableException("Room not found: " + roomNumber));
 
-        // Senin orijinal RoomNotAvailableException kontrolün
+       
         if (!room.isAvailable()) {
             throw new RoomNotAvailableException("Room " + room.getRoomNumber() + " is not available.");
         }
 
-        // İsme göre mevcut müşteri ara, yoksa kayıt ol
         Customer customer = customers.stream()
                 .filter(c -> c.getFullName().equalsIgnoreCase(customerName))
                 .findFirst()
@@ -145,14 +140,14 @@ public class BookingService {
         String resId = String.format("RES-%03d", reservationCounter++);
         Reservation reservation = new Reservation(resId, customer, room, checkIn, checkOut);
 
-        // Senin orijinal book() metodunu çağırıyoruz
+       
         reservation.book();
 
         reservations.add(reservation);
         return reservation;
     }
 
-    // Senin orijinal cancel() metodunu çağıran wrapper
+    
     public boolean cancelReservation(String reservationId) {
         Reservation reservation = reservations.stream()
                 .filter(r -> r.getReservationId().equals(reservationId))
@@ -163,7 +158,7 @@ public class BookingService {
         return true;
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    // ─── Helpers 
 
     private Room findRoomById(Long id) {
         return rooms.stream().filter(r -> r.getRoomId().equals(id)).findFirst().orElse(null);
