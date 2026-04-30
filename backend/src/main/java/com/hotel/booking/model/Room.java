@@ -1,38 +1,46 @@
 package com.hotel.booking.model;
 
+import com.hotel.booking.exception.InvalidRoomDataException;
 
 public class Room {
-
-    private Long roomId;
     private String roomNumber;
     private int capacity;
     private double price;
     private boolean isAvailable;
-    private String type;           // "Single" | "Double" | "Suite"
-    private String status;         // "Available" | "Occupied" | "Maintenance"
+
+    // API için eklendi - frontend bu field'ları bekliyor
+    private Long roomId;
+    private String type;
+    private String status;
 
     public Room() {}
 
     public Room(String roomNumber, int capacity, double price, boolean isAvailable) {
-        if (price < 0) {
-            throw new IllegalArgumentException("Price can't be negative");
+        try {
+            if (price < 0) {
+                throw new InvalidRoomDataException("Price can't be negative");
+            }
+            this.roomNumber = roomNumber;
+            this.capacity = capacity;
+            this.price = price;
+            this.isAvailable = isAvailable;
+            this.status = isAvailable ? "Available" : "Occupied";
+        } catch (InvalidRoomDataException e) {
+            System.out.println("Room creation error: " + e.getMessage());
         }
+    }
+
+    public Room(String roomNumber, int capacity, double price) {
         this.roomNumber = roomNumber;
         this.capacity = capacity;
         this.price = price;
-        this.isAvailable = isAvailable;
-        this.status = isAvailable ? "Available" : "Occupied";
+        this.isAvailable = true;
+        this.status = "Available";
     }
-
 
     public double calculatePrice(int numberOfNights) {
-        return price * numberOfNights;
+        return 0;
     }
-
-    // ── Getters & Setters
-
-    public Long getRoomId() { return roomId; }
-    public void setRoomId(Long roomId) { this.roomId = roomId; }
 
     public String getRoomNumber() { return roomNumber; }
     public void setRoomNumber(String roomNumber) { this.roomNumber = roomNumber; }
@@ -46,11 +54,22 @@ public class Room {
     public boolean isAvailable() { return isAvailable; }
     public void setAvailable(boolean available) {
         isAvailable = available;
-
         if (!"Maintenance".equals(this.status)) {
             this.status = available ? "Available" : "Occupied";
         }
     }
+
+    public void printAvailable() {
+        if (isAvailable) {
+            System.out.println("Room is available");
+        } else {
+            System.out.println("Room is not available");
+        }
+    }
+
+    // --- API için eklendi ---
+    public Long getRoomId() { return roomId; }
+    public void setRoomId(Long roomId) { this.roomId = roomId; }
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
@@ -61,6 +80,6 @@ public class Room {
         this.isAvailable = "Available".equals(status);
     }
 
-
+    // frontend "pricePerNight" bekliyor, orijinal field "price" - bu getter köprü kuruyor
     public double getPricePerNight() { return price; }
 }

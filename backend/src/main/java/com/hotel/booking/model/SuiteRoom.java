@@ -1,10 +1,9 @@
 package com.hotel.booking.model;
 
-
 public class SuiteRoom extends Room {
 
     private int luxuryFee;
-    private String suiteLevel;    // "Deluxe", "Presidential"
+    private String suiteLevel;
     private boolean hasLivingRoom;
 
     public SuiteRoom(String roomNumber, int capacity, double price, boolean isAvailable,
@@ -16,13 +15,7 @@ public class SuiteRoom extends Room {
         setType("Suite");
     }
 
-
-    @Override
-    public double calculatePrice(int numberOfNights) {
-        return (getPrice() + luxuryFee) * numberOfNights;
-    }
-
-    public int getLuxuryFee() { return luxuryFee; }
+    public double getLuxuryFee() { return luxuryFee; }
     public void setLuxuryFee(int luxuryFee) { this.luxuryFee = luxuryFee; }
 
     public String getSuiteLevel() { return suiteLevel; }
@@ -32,11 +25,20 @@ public class SuiteRoom extends Room {
     public void setHasLivingRoom(boolean hasLivingRoom) { this.hasLivingRoom = hasLivingRoom; }
 
     @Override
+    public void printAvailable() {
+        System.out.println("Suite Room availability: " + isAvailable());
+    }
+
+    @Override
+    public double calculatePrice(int numberOfNights) {
+        double totalPrice = (getPrice() + luxuryFee) * numberOfNights;
+        return totalPrice;
+    }
+
+    @Override
     public String toString() {
-        return "SuiteRoom " + getRoomNumber()
-                + " - " + suiteLevel
-                + ", Price: " + getPrice()
-                + ", Luxury Fee: $" + luxuryFee
+        return "SuiteRoom " + getRoomNumber() + " - " + suiteLevel + " Suite, Price: " + getPrice()
+                + ", Luxury Fee: $" + luxuryFee + ", Living Room: " + (hasLivingRoom ? "Yes" : "No")
                 + ", Available: " + (isAvailable() ? "Yes" : "No");
     }
 }

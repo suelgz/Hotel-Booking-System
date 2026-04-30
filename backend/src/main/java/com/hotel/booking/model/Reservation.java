@@ -3,7 +3,7 @@ package com.hotel.booking.model;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
-public class Reservation {
+public class Reservation implements Bookable, Cancelable {
 
     private String reservationId;
     private Customer customer;
@@ -11,9 +11,12 @@ public class Reservation {
     private double totalPrice;
     private boolean isBooked;
     private boolean isCancelled;
+    private Payment payment;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
-    private String status;   // "Active" | "Completed" | "Cancelled" - frontend
+
+    // API için eklendi - frontend status gösteriyor
+    private String status;
 
     public Reservation() {}
 
@@ -29,7 +32,21 @@ public class Reservation {
         this.status = "Active";
     }
 
+    public String getReservationId() { return reservationId; }
+    public Customer getCustomer() { return customer; }
+    public Room getRoom() { return room; }
+    public double getTotalPrice() { return totalPrice; }
+    public Payment getPayment() { return payment; }
+    public LocalDate getCheckInDate() { return checkInDate; }
+    public LocalDate getCheckOutDate() { return checkOutDate; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
+    public long getNumberOfNights() {
+        return ChronoUnit.DAYS.between(checkInDate, checkOutDate);
+    }
+
+    @Override
     public void book() {
         if (room.isAvailable() && !isBooked && !isCancelled) {
             this.isBooked = true;
@@ -37,30 +54,50 @@ public class Reservation {
             int nights = (int) getNumberOfNights();
             this.totalPrice = room.calculatePrice(nights);
             this.status = "Active";
+
+            System.out.println("Reservation " + reservationId + " booked!");
+            System.out.println("Customer: " + customer.getName());
+            System.out.println("Room: " + room.getRoomNumber());
+            System.out.println("Check-in: " + checkInDate);
+            System.out.println("Check-out: " + checkOutDate);
+            System.out.println("Nights: " + nights);
+            System.out.println("Total: " + totalPrice);
             customer.addReservation(this);
+        } else {
+            System.out.println("You can't book the room, it is not available!");
         }
     }
 
+    @Override
+    public boolean isBooked() { return isBooked; }
 
+    @Override
+    public boolean isCancelled() { return isCancelled; }
+
+    @Override
     public void cancel() {
         if (isBooked && !isCancelled) {
             this.isCancelled = true;
             this.isBooked = false;
             this.status = "Cancelled";
             room.setAvailable(true);
+            System.out.println("Reservation " + reservationId + " cancelled!");
+        } else {
+            System.out.println("Cannot cancel - not booked");
         }
     }
 
-    public void complete() {
-        this.status = "Completed";
+    public void makePayment(Payment payment) {
+        if (payment.processPayment()) {
+            this.payment = payment;
+            payment.completePayment();
+            System.out.println("Payment completed for reservation " + reservationId);
+        } else {
+            System.out.println("Payment failed");
+        }
     }
 
-
-    public long getNumberOfNights() {
-        return ChronoUnit.DAYS.between(checkInDate, checkOutDate);
-    }
-
-
+    // --- API için eklendi - frontend flat field'lar bekliyor ---
     public String getCustomerName() {
         return customer != null ? customer.getFullName() : "";
     }
@@ -76,33 +113,4 @@ public class Reservation {
     public Long getRoomId() {
         return room != null ? room.getRoomId() : null;
     }
-
-    // ── Getters & Setters
-
-    public String getReservationId() { return reservationId; }
-    public void setReservationId(String reservationId) { this.reservationId = reservationId; }
-
-    public Customer getCustomer() { return customer; }
-    public void setCustomer(Customer customer) { this.customer = customer; }
-
-    public Room getRoom() { return room; }
-    public void setRoom(Room room) { this.room = room; }
-
-    public double getTotalPrice() { return totalPrice; }
-    public void setTotalPrice(double totalPrice) { this.totalPrice = totalPrice; }
-
-    public boolean isBooked() { return isBooked; }
-    public void setBooked(boolean booked) { isBooked = booked; }
-
-    public boolean isCancelled() { return isCancelled; }
-    public void setCancelled(boolean cancelled) { isCancelled = cancelled; }
-
-    public LocalDate getCheckInDate() { return checkInDate; }
-    public void setCheckInDate(LocalDate checkInDate) { this.checkInDate = checkInDate; }
-
-    public LocalDate getCheckOutDate() { return checkOutDate; }
-    public void setCheckOutDate(LocalDate checkOutDate) { this.checkOutDate = checkOutDate; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
 }

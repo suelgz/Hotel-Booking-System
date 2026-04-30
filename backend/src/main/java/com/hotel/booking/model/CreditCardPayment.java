@@ -1,3 +1,5 @@
+package com.hotel.booking.model;
+
 public class CreditCardPayment extends Payment {
     private String cardNumber;
     private String cardHolderName;
@@ -14,39 +16,27 @@ public class CreditCardPayment extends Payment {
     @Override
     public boolean processPayment() {
         System.out.println("Processing credit card payment for " + cardHolderName + "...");
-
-        try { //validates 16 digits
+        try {
             if (cardNumber.length() < 16) {
                 throw new IllegalArgumentException("Card number is not valid");
-                }
-            if(cardHolderName==null){
-               throw new IllegalArgumentException("Card Holder Name is null");
-                }
-            if(cardHolderName.matches(".*\\d.*")) { // if it has a number
+            }
+            if (cardHolderName == null) {
+                throw new IllegalArgumentException("Card Holder Name is null");
+            }
+            if (cardHolderName.matches(".*\\d.*")) {
                 throw new IllegalArgumentException("Name must contain only letters.");
             }
-
-            if(expiryDate==null){
-                    throw new IllegalArgumentException("Expiry Date can't be empty");
+            if (expiryDate == null) {
+                throw new IllegalArgumentException("Expiry Date can't be empty");
             }
         } catch (IllegalArgumentException e) {
             System.out.println("Error: " + e.getMessage());
-            return false; //if there's a mistake
+            return false;
         }
-        return true; // if its all true
+        return true;
     }
 
-
-    public String getCardNumber() {
-        return cardNumber;
-    }
-
-    public String getCardHolderName() {
-        return cardHolderName;
-    }
-
-    public String getExpiryDate() {
-        return expiryDate;
-    }
-
+    public String getCardNumber() { return cardNumber; }
+    public String getCardHolderName() { return cardHolderName; }
+    public String getExpiryDate() { return expiryDate; }
 }
