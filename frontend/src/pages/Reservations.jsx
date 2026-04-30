@@ -1,11 +1,10 @@
-// Reservations.jsx - manage all hotel reservations
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  getReservations,
-  createReservation,
   cancelReservation,
-  getRooms,
+  createReservation,
   getCustomers,
+  getReservations,
+  getRooms,
 } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import Modal from "../components/Modal";
@@ -13,17 +12,17 @@ import "./Reservations.css";
 
 const STATUSES = ["Active", "Completed", "Cancelled"];
 
-function ReservationForm({ rooms, customers, onSubmit, onCancel }) {
+function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }) {
+  const availableRooms = rooms.filter((room) => room.status === "Available");
   const [form, setForm] = useState({
     customerName: "",
-    roomNumber: rooms[0]?.roomNumber || "",
+    roomNumber: availableRooms[0]?.roomNumber || "",
     checkInDate: "",
     checkOutDate: "",
   });
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
-  // Calculate nights and estimated price on the fly
   const nights =
     form.checkInDate && form.checkOutDate
       ? Math.max(
@@ -35,28 +34,22 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel }) {
         )
       : 0;
 
-  const selectedRoom = rooms.find((r) => r.roomNumber === form.roomNumber);
+  const selectedRoom = rooms.find((room) => room.roomNumber === form.roomNumber);
   const estimatedTotal = selectedRoom ? nights * selectedRoom.pricePerNight : 0;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!form.customerName || !form.roomNumber || !form.checkInDate || !form.checkOutDate) {
-      alert("Please fill in all fields.");
-      return;
-    }
-    if (nights <= 0) {
-      alert("Check-out must be after check-in.");
-      return;
-    }
-    onSubmit(form);
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (saving) return;
+    onSubmit({
+      ...form,
+      customerName: form.customerName.trim(),
+    });
   };
-
-  // Only show available rooms as options
-  const availableRooms = rooms.filter((r) => r.status === "Available");
 
   return (
     <form onSubmit={handleSubmit}>
       <div className="modal-body">
+        {error && <div className="form-error">{error}</div>}
         <div className="form-group">
           <label>Guest Name</label>
           <input
@@ -65,22 +58,23 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel }) {
             placeholder="e.g. Emily Carter"
             list="customer-suggestions"
           />
-          {/* Suggests existing customers */}
           <datalist id="customer-suggestions">
-            {customers.map((c) => (
-              <option key={c.customerId} value={c.fullName} />
+            {customers.map((customer) => (
+              <option key={customer.customerId} value={customer.fullName} />
             ))}
           </datalist>
         </div>
         <div className="form-group">
           <label>Room</label>
-          <select value={form.roomNumber} onChange={(e) => set("roomNumber", e.target.value)}>
-            {availableRooms.length === 0 && (
-              <option value="">No available rooms</option>
-            )}
-            {availableRooms.map((r) => (
-              <option key={r.roomId} value={r.roomNumber}>
-                #{r.roomNumber} — {r.type} · ${r.pricePerNight}/night
+          <select
+            value={form.roomNumber}
+            onChange={(e) => set("roomNumber", e.target.value)}
+            disabled={availableRooms.length === 0}
+          >
+            {availableRooms.length === 0 && <option value="">No available rooms</option>}
+            {availableRooms.map((room) => (
+              <option key={room.roomId} value={room.roomNumber}>
+                #{room.roomNumber} - {room.type} - ${room.pricePerNight}/night
               </option>
             ))}
           </select>
@@ -88,19 +82,11 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel }) {
         <div className="form-row">
           <div className="form-group">
             <label>Check-in</label>
-            <input
-              type="date"
-              value={form.checkInDate}
-              onChange={(e) => set("checkInDate", e.target.value)}
-            />
+            <input type="date" value={form.checkInDate} onChange={(e) => set("checkInDate", e.target.value)} />
           </div>
           <div className="form-group">
             <label>Check-out</label>
-            <input
-              type="date"
-              value={form.checkOutDate}
-              onChange={(e) => set("checkOutDate", e.target.value)}
-            />
+            <input type="date" value={form.checkOutDate} onChange={(e) => set("checkOutDate", e.target.value)} />
           </div>
         </div>
         {nights > 0 && (
@@ -111,11 +97,11 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel }) {
         )}
       </div>
       <div className="modal-footer">
-        <button type="button" className="btn btn-outline" onClick={onCancel}>
+        <button type="button" className="btn btn-outline" onClick={onCancel} disabled={saving}>
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary">
-          Create Reservation
+        <button type="submit" className="btn btn-primary" disabled={saving || availableRooms.length === 0}>
+          {saving ? "Saving..." : "Create Reservation"}
         </button>
       </div>
     </form>
@@ -127,51 +113,96 @@ export default function Reservations() {
   const [rooms, setRooms] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showModal, setShowModal] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const [res, r, c] = await Promise.all([
-      getReservations(),
-      getRooms(),
-      getCustomers(),
-    ]);
-    setReservations(res);
-    setRooms(r);
-    setCustomers(c);
-    setLoading(false);
+    setError("");
+    try {
+      const [reservationData, roomData, customerData] = await Promise.all([
+        getReservations(),
+        getRooms(),
+        getCustomers(),
+      ]);
+      setReservations(reservationData);
+      setRooms(roomData);
+      setCustomers(customerData);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(load, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const validate = (data) => {
+    if (!data.customerName || !data.roomNumber || !data.checkInDate || !data.checkOutDate) {
+      return "Please fill in all fields.";
+    }
+    if (new Date(data.checkOutDate) <= new Date(data.checkInDate)) {
+      return "Check-out must be after check-in.";
+    }
+    return "";
+  };
 
   const handleCreate = async (data) => {
-    await createReservation(data);
-    setShowModal(false);
-    load();
+    const validationError = validate(data);
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
+    setSaving(true);
+    setFormError("");
+    try {
+      await createReservation(data);
+      setShowModal(false);
+      await load();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = async (id) => {
     if (!window.confirm("Cancel this reservation?")) return;
-    await cancelReservation(id);
-    load();
+    setError("");
+    try {
+      await cancelReservation(id);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const filtered = reservations.filter((r) => {
-    const q = search.toLowerCase();
+  const openModal = () => {
+    setFormError("");
+    setShowModal(true);
+  };
+
+  const filtered = reservations.filter((reservation) => {
+    const query = search.toLowerCase();
     const matchSearch =
-      r.customerName.toLowerCase().includes(q) ||
-      r.roomNumber.includes(q) ||
-      r.reservationId.toLowerCase().includes(q);
-    const matchStatus = statusFilter === "All" || r.status === statusFilter;
+      (reservation.customerName || "").toLowerCase().includes(query) ||
+      (reservation.roomNumber || "").toLowerCase().includes(query) ||
+      (reservation.reservationId || "").toLowerCase().includes(query);
+    const matchStatus = statusFilter === "All" || reservation.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  // Quick stats strip
-  const active = reservations.filter((r) => r.status === "Active").length;
-  const completed = reservations.filter((r) => r.status === "Completed").length;
-  const cancelled = reservations.filter((r) => r.status === "Cancelled").length;
+  const active = reservations.filter((reservation) => reservation.status === "Active").length;
+  const completed = reservations.filter((reservation) => reservation.status === "Completed").length;
+  const cancelled = reservations.filter((reservation) => reservation.status === "Cancelled").length;
 
   return (
     <div className="page-content">
@@ -180,12 +211,11 @@ export default function Reservations() {
           <h1>Reservations</h1>
           <p>{reservations.length} reservations total</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary" onClick={openModal}>
           + New Reservation
         </button>
       </div>
 
-      {/* Quick stats */}
       <div className="res-stats">
         <div className="res-stat">
           <span className="res-stat-val res-stat-blue">{active}</span>
@@ -204,29 +234,23 @@ export default function Reservations() {
       <div className="card">
         <div className="toolbar">
           <div className="search-wrap">
-            <span className="search-icon">🔍</span>
-            <input
-              placeholder="Search guest, room, ID…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <span className="search-icon">#</span>
+            <input placeholder="Search guest, room, ID..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
+          <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="All">All Statuses</option>
-            {STATUSES.map((s) => <option key={s}>{s}</option>)}
+            {STATUSES.map((status) => <option key={status}>{status}</option>)}
           </select>
           <span className="toolbar-count">{filtered.length} results</span>
         </div>
 
+        {error && <div className="error-state">{error}</div>}
+
         {loading ? (
-          <div className="loading-state">Loading reservations…</div>
+          <div className="loading-state">Loading reservations... Render may take a moment to wake up.</div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">◫</div>
+            <div className="empty-icon">0</div>
             <p>No reservations found.</p>
           </div>
         ) : (
@@ -245,23 +269,18 @@ export default function Reservations() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((res) => (
-                  <tr key={res.reservationId}>
-                    <td className="res-id-cell">{res.reservationId}</td>
-                    <td><strong>{res.customerName}</strong></td>
-                    <td>#{res.roomNumber}</td>
-                    <td>{res.checkInDate}</td>
-                    <td>{res.checkOutDate}</td>
-                    <td className="price-cell">
-                      ${res.totalPrice.toLocaleString()}
-                    </td>
-                    <td><StatusBadge value={res.status} /></td>
+                {filtered.map((reservation) => (
+                  <tr key={reservation.reservationId}>
+                    <td className="res-id-cell">{reservation.reservationId}</td>
+                    <td><strong>{reservation.customerName}</strong></td>
+                    <td>#{reservation.roomNumber}</td>
+                    <td>{reservation.checkInDate}</td>
+                    <td>{reservation.checkOutDate}</td>
+                    <td className="price-cell">${Number(reservation.totalPrice || 0).toLocaleString()}</td>
+                    <td><StatusBadge value={reservation.status} /></td>
                     <td>
-                      {res.status === "Active" && (
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleCancel(res.reservationId)}
-                        >
+                      {reservation.status === "Active" && (
+                        <button className="btn btn-danger btn-sm" onClick={() => handleCancel(reservation.reservationId)}>
                           Cancel
                         </button>
                       )}
@@ -275,12 +294,14 @@ export default function Reservations() {
       </div>
 
       {showModal && (
-        <Modal title="New Reservation" onClose={() => setShowModal(false)}>
+        <Modal title="New Reservation" onClose={() => !saving && setShowModal(false)}>
           <ReservationForm
             rooms={rooms}
             customers={customers}
             onSubmit={handleCreate}
             onCancel={() => setShowModal(false)}
+            saving={saving}
+            error={formError}
           />
         </Modal>
       )}

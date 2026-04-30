@@ -39,7 +39,7 @@ public class Room {
     }
 
     public double calculatePrice(int numberOfNights) {
-        return 0;
+        return price * numberOfNights;
     }
 
     public String getRoomNumber() { return roomNumber; }
@@ -76,10 +76,11 @@ public class Room {
 
     public String getStatus() { return status; }
     public void setStatus(String status) {
-        this.status = status;
-        this.isAvailable = "Available".equals(status);
+        this.status = status == null || status.isBlank() ? "Available" : status;
+        this.isAvailable = "Available".equals(this.status);
     }
 
     // frontend "pricePerNight" bekliyor, orijinal field "price" - bu getter köprü kuruyor
     public double getPricePerNight() { return price; }
+    public void setPricePerNight(double pricePerNight) { this.price = pricePerNight; }
 }

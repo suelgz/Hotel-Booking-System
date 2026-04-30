@@ -1,5 +1,6 @@
 package com.hotel.booking.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
@@ -33,7 +34,9 @@ public class Reservation implements Bookable, Cancelable {
     }
 
     public String getReservationId() { return reservationId; }
+    @JsonIgnore
     public Customer getCustomer() { return customer; }
+    @JsonIgnore
     public Room getRoom() { return room; }
     public double getTotalPrice() { return totalPrice; }
     public Payment getPayment() { return payment; }

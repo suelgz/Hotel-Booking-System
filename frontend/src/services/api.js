@@ -1,26 +1,38 @@
-
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 
 async function request(path, options = {}) {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  let response;
 
-  // 204 No Content - DELETE sonrası body olmaz
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the hotel API. If this is the live demo, the Render backend may need 30-60 seconds to wake up."
+    );
+  }
+
   if (response.status === 204) return { success: true };
 
-  const data = await response.json();
+  const text = await response.text();
+  const data = text ? tryParseJson(text) : {};
 
   if (!response.ok) {
-    // Sunucudan gelen hata mesajını fırlat (RoomNotAvailableException vs.)
-    throw new Error(data.error || `HTTP ${response.status}`);
+    throw new Error(data.error || data.message || `Request failed with status ${response.status}.`);
   }
 
   return data;
 }
 
-// ─── Rooms ────────────────────────────────────────────────────────────────────
+function tryParseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
 
 export async function getRooms() {
   return request("/rooms");
@@ -44,8 +56,6 @@ export async function deleteRoom(roomId) {
   return request(`/rooms/${roomId}`, { method: "DELETE" });
 }
 
-// ─── Reservations ─────────────────────────────────────────────────────────────
-
 export async function getReservations() {
   return request("/reservations");
 }
@@ -57,12 +67,9 @@ export async function createReservation(reservationData) {
   });
 }
 
-// Senin orijinal Reservation.cancel() metodunu Spring Boot üzerinden çağırıyor
 export async function cancelReservation(reservationId) {
   return request(`/reservations/${reservationId}/cancel`, { method: "PATCH" });
 }
-
-// ─── Customers ────────────────────────────────────────────────────────────────
 
 export async function getCustomers() {
   return request("/customers");

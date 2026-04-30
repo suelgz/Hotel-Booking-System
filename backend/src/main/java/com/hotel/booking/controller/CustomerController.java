@@ -19,54 +19,55 @@ public class CustomerController {
         this.bookingService = bookingService;
     }
 
-    // GET /api/customers
     @GetMapping
     public List<Customer> getAllCustomers() {
         return bookingService.getAllCustomers();
     }
 
-    // POST /api/customers
-    // Body: { "fullName": "Emily Carter", "email": "...", "phone": "..." }
     @PostMapping
-    public ResponseEntity<?> createCustomer(@RequestBody Map<String, String> body) {
-        try {
-            // fullName'i name + surname olarak parçala
-            String fullName = body.getOrDefault("fullName", "");
-            String[] parts = fullName.trim().split(" ", 2);
-            String name = parts[0];
-            String surname = parts.length > 1 ? parts[1] : "";
-
-            Customer created = bookingService.addCustomer(
-                    name, surname,
-                    body.get("email"),
-                    body.get("phone")
-            );
-            return ResponseEntity.ok(created);
-        } catch (InvalidCustomerDataException e) {
-            // Senin orijinal hata mesajın frontend'e gönderiliyor
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<Customer> createCustomer(@RequestBody Map<String, String> body)
+            throws InvalidCustomerDataException {
+        String[] nameParts = splitFullName(body.get("fullName"));
+        Customer created = bookingService.addCustomer(
+                nameParts[0],
+                nameParts[1],
+                body.get("email"),
+                body.get("phone")
+        );
+        return ResponseEntity.ok(created);
     }
 
-    // PUT /api/customers/{id}
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateCustomer(@PathVariable Long id,
-                                            @RequestBody Map<String, String> body) {
-        String fullName = body.getOrDefault("fullName", "");
-        String[] parts = fullName.trim().split(" ", 2);
-        String name = parts[0];
-        String surname = parts.length > 1 ? parts[1] : "";
-
-        Customer updated = bookingService.updateCustomer(id, name, surname,
-                body.get("email"), body.get("phone"));
-        if (updated == null) return ResponseEntity.notFound().build();
+    public ResponseEntity<?> updateCustomer(@PathVariable Long id, @RequestBody Map<String, String> body)
+            throws InvalidCustomerDataException {
+        String[] nameParts = splitFullName(body.get("fullName"));
+        Customer updated = bookingService.updateCustomer(
+                id,
+                nameParts[0],
+                nameParts[1],
+                body.get("email"),
+                body.get("phone")
+        );
+        if (updated == null) {
+            return ResponseEntity.status(404).body(Map.of("error", "Customer not found."));
+        }
         return ResponseEntity.ok(updated);
     }
 
-    // DELETE /api/customers/{id}
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCustomer(@PathVariable Long id) {
-        if (!bookingService.deleteCustomer(id)) return ResponseEntity.notFound().build();
+    public ResponseEntity<?> deleteCustomer(@PathVariable Long id) {
+        if (!bookingService.deleteCustomer(id)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Customer not found."));
+        }
         return ResponseEntity.noContent().build();
+    }
+
+    private String[] splitFullName(String fullName) {
+        String cleaned = fullName == null ? "" : fullName.trim().replaceAll("\\s+", " ");
+        if (cleaned.isEmpty()) {
+            return new String[]{"", "-"};
+        }
+        String[] parts = cleaned.split(" ", 2);
+        return new String[]{parts[0], parts.length > 1 ? parts[1] : "-"};
     }
 }
