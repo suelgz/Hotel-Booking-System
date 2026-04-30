@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-// Bu olmadan tarayıcı, React'ten gelen istekleri engeller (CORS error).
 @Configuration
 public class CorsConfig {
 
@@ -15,7 +14,11 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOrigins("http://localhost:5173", "http://localhost:3000")
+                        .allowedOriginPatterns(
+                                "http://localhost:5173",
+                                "http://localhost:3000",
+                                "https://*.vercel.app"
+                        )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                         .allowedHeaders("*");
             }
