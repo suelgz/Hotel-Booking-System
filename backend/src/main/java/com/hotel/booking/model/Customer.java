@@ -1,5 +1,6 @@
 package com.hotel.booking.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hotel.booking.exception.InvalidCustomerDataException;
 import java.util.ArrayList;
 
@@ -57,6 +58,7 @@ public class Customer {
 
     public void addReservation(Reservation r) { reservations.add(r); }
     public void removeReservation(Reservation r) { reservations.remove(r); }
+    @JsonIgnore
     public ArrayList<Reservation> getReservations() { return reservations; }
 
     // --- API için eklendi ---
@@ -64,7 +66,7 @@ public class Customer {
     public void setCustomerId(Long customerId) { this.customerId = customerId; }
 
     // frontend "fullName" bekliyor
-    public String getFullName() { return name + " " + surname; }
+    public String getFullName() { return (name + " " + surname).trim(); }
 
     // frontend Customers tablosunda gösteriyor
     public int getTotalReservations() { return reservations.size(); }

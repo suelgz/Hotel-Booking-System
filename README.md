@@ -1,99 +1,82 @@
 # Hotel Booking Management System
 
-A hotel booking management system built as a portfolio project to demonstrate Java OOP, React frontend development, and full-stack project structure.
+A full-stack hotel booking management system built as a student portfolio project. It demonstrates a React/Vite frontend, a Java 17 Spring Boot REST API, simple OOP models, and deployment to Vercel and Render.
 
-This project originally started as a Java-based hotel reservation system and is currently being converted into a full-stack web application with a React frontend and a Java Spring Boot backend.
+## Live Demo
 
-## Project Status
+- Frontend: https://hotel-booking-system-mocha.vercel.app/
+- Backend API example: https://hotel-booking-system-k8x2.onrender.com/api/rooms
 
-The project is currently in progress.
+The backend is hosted on Render's free plan. If it has been idle, the first request can take about 30-60 seconds while the service wakes up.
 
-- Java OOP core structure exists
-- React frontend is created
-- Frontend currently uses mock/local data
-- Spring Boot backend structure is being prepared
-- REST API integration will be added step by step
+## Tech Stack
+
+Frontend:
+- React
+- Vite
+- JavaScript
+- React Router
+- CSS
+
+Backend:
+- Java 17
+- Spring Boot
+- Maven
+- Docker
+- In-memory data storage
+
+Deployment:
+- Vercel for the frontend
+- Render for the backend API
 
 ## Features
 
-### Current Features
-
-- Room management structure
-- Customer management structure
-- Reservation management logic
-- Payment type structure using polymorphism
-- Custom exception handling
-- React dashboard layout
-- Rooms, reservations, and customers pages
-- Clean full-stack folder structure
-
-### Planned Features
-
-- Connect React frontend to Java Spring Boot REST API
-- Add database support with PostgreSQL or SQLite
-- Implement real CRUD operations
-- Add room availability checking
-- Add reservation cancellation and payment updates
-- Improve validation and error handling
-- Add screenshots and deployment link
-
-## Technologies Used
-
-### Frontend
-
-- React
-- JavaScript
-- CSS
-- Vite
-- React Router
-
-### Backend
-
-- Java
-- Spring Boot
-- Maven
-- Object-Oriented Programming
-
+- Dashboard with room, customer, and reservation summaries
+- Room listing, creation, update, and deletion
+- Customer listing, creation, update, and deletion
+- Reservation creation with date validation
+- Reservation cancellation with room status updates
+- Clear loading and error states for API requests
+- Simple health endpoint at `GET /api/health`
+- SPA routing support for Vercel refreshes
 
 ## Project Structure
 
 ```text
 Hotel-Booking-System/
-│
 ├── backend/
+│   ├── Dockerfile
 │   ├── pom.xml
 │   └── src/
-│       └── main/
-│           └── java/
-│               └── com/
-│                   └── hotel/
-│                       └── booking/
-│                           ├── HotelBookingApplication.java
-│                           └── model/
-│                               ├── Room.java
-│                               ├── Customer.java
-│                               ├── Reservation.java
-│                               ├── Payment.java
-│                               └── ...
-│
+│       ├── main/java/com/hotel/booking/
+│       └── test/java/com/hotel/booking/
 ├── frontend/
 │   ├── package.json
-│   ├── index.html
+│   ├── vercel.json
 │   └── src/
 │       ├── components/
 │       ├── pages/
 │       ├── services/
-│       ├── data/
 │       └── styles/
-│
-├── README.md
-├── LICENSE
-└── .gitignore
+└── README.md
 ```
 
-## Frontend Setup
+## Local Setup
 
-To run the frontend locally:
+Backend:
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+The API runs at:
+
+```text
+http://localhost:8080/api
+```
+
+Frontend:
 
 ```bash
 cd frontend
@@ -101,36 +84,67 @@ npm install
 npm run dev
 ```
 
-Then open the local development URL shown in the terminal:
+The frontend runs at:
 
 ```text
 http://localhost:5173
 ```
 
-## Backend Setup
+The frontend uses this API base URL:
 
-The backend is being migrated to Spring Boot.
-
-To run the backend after the Spring Boot setup is completed:
-
-```bash
-cd backend
-mvn spring-boot:run
+```js
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 ```
 
-Expected backend URL:
+For the live Vercel deployment, set:
 
 ```text
-http://localhost:8080
+VITE_API_BASE_URL=https://hotel-booking-system-k8x2.onrender.com/api
 ```
 
-Planned API examples:
+## Deployment Notes
+
+Vercel:
+- Root directory: `frontend`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Environment variable: `VITE_API_BASE_URL`
+
+Render:
+- Docker build context: `backend`
+- Dockerfile path: `backend/Dockerfile`
+- The backend uses `server.port=${PORT:8080}` so Render can inject the correct port.
+
+## API Examples
 
 ```text
-GET /api/rooms
-POST /api/rooms
-GET /api/customers
-POST /api/customers
-GET /api/reservations
-POST /api/reservations
+GET    /api/health
+GET    /api/rooms
+POST   /api/rooms
+PUT    /api/rooms/{id}
+DELETE /api/rooms/{id}
+
+GET    /api/customers
+POST   /api/customers
+PUT    /api/customers/{id}
+DELETE /api/customers/{id}
+
+GET    /api/reservations
+POST   /api/reservations
+PATCH  /api/reservations/{id}/cancel
 ```
+
+## Known Limitations
+
+- Data is currently stored in memory.
+- Data may reset when the Render service restarts.
+- There is no authentication yet.
+- There is no persistent database yet.
+
+## Future Improvements
+
+- PostgreSQL database
+- Authentication
+- Admin and customer roles
+- Better reservation calendar
+- Payment status management

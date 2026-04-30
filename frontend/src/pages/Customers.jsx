@@ -1,39 +1,36 @@
-// Customers.jsx - customer directory with add, edit, delete
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  getCustomers,
   createCustomer,
-  updateCustomer,
   deleteCustomer,
+  getCustomers,
+  updateCustomer,
 } from "../services/api";
 import Modal from "../components/Modal";
 import "./Customers.css";
 
-function CustomerForm({ initial = {}, onSubmit, onCancel }) {
+function CustomerForm({ initial = {}, onSubmit, onCancel, saving, error }) {
   const [form, setForm] = useState({
     fullName: initial.fullName || "",
     email: initial.email || "",
     phone: initial.phone || "",
   });
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!form.fullName || !form.email || !form.phone) {
-      alert("All fields are required.");
-      return;
-    }
-    if (!form.email.includes("@")) {
-      alert("Please enter a valid email.");
-      return;
-    }
-    onSubmit(form);
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (saving) return;
+    onSubmit({
+      fullName: form.fullName.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+    });
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <div className="modal-body">
+        {error && <div className="form-error">{error}</div>}
         <div className="form-group">
           <label>Full Name</label>
           <input
@@ -61,29 +58,27 @@ function CustomerForm({ initial = {}, onSubmit, onCancel }) {
         </div>
       </div>
       <div className="modal-footer">
-        <button type="button" className="btn btn-outline" onClick={onCancel}>
+        <button type="button" className="btn btn-outline" onClick={onCancel} disabled={saving}>
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary">
-          {initial.customerId ? "Save Changes" : "Add Customer"}
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? "Saving..." : initial.customerId ? "Save Changes" : "Add Customer"}
         </button>
       </div>
     </form>
   );
 }
 
-// Initials avatar for the customer table
 function Avatar({ name }) {
-  const initials = name
+  const safeName = name || "?";
+  const initials = safeName
     .split(" ")
-    .map((n) => n[0])
+    .map((part) => part[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-  // Pick a color based on the first character - just for variety
   const colors = ["#2980b9", "#27ae60", "#8e44ad", "#c9913d", "#e74c3c"];
-  const color = colors[name.charCodeAt(0) % colors.length];
+  const color = colors[safeName.charCodeAt(0) % colors.length];
 
   return (
     <div className="customer-avatar" style={{ background: color }}>
@@ -95,46 +90,86 @@ function Avatar({ name }) {
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [search, setSearch] = useState("");
-  const [modal, setModal] = useState(null); // null | "add" | { customer }
+  const [modal, setModal] = useState(null);
 
   const load = async () => {
     setLoading(true);
-    setCustomers(await getCustomers());
-    setLoading(false);
+    setError("");
+    try {
+      setCustomers(await getCustomers());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(load, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
-  const handleAdd = async (data) => {
-    await createCustomer(data);
-    setModal(null);
-    load();
+  const validate = (data) => {
+    if (!data.fullName || !data.email || !data.phone) return "All fields are required.";
+    if (!data.email.includes("@")) return "Please enter a valid email address.";
+    return "";
   };
 
-  const handleEdit = async (data) => {
-    await updateCustomer(modal.customer.customerId, data);
-    setModal(null);
-    load();
+  const handleSave = async (data) => {
+    const validationError = validate(data);
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
+    setSaving(true);
+    setFormError("");
+    try {
+      if (modal?.customer) {
+        await updateCustomer(modal.customer.customerId, data);
+      } else {
+        await createCustomer(data);
+      }
+      setModal(null);
+      await load();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Remove this customer from the system?")) return;
-    await deleteCustomer(id);
-    load();
+    setError("");
+    try {
+      await deleteCustomer(id);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const filtered = customers.filter((c) => {
-    const q = search.toLowerCase();
+  const openModal = (value) => {
+    setFormError("");
+    setModal(value);
+  };
+
+  const filtered = customers.filter((customer) => {
+    const query = search.toLowerCase();
     return (
-      c.fullName.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q) ||
-      c.phone.includes(q)
+      (customer.fullName || "").toLowerCase().includes(query) ||
+      (customer.email || "").toLowerCase().includes(query) ||
+      (customer.phone || "").includes(query)
     );
   });
 
   const totalReservations = customers.reduce(
-    (sum, c) => sum + c.totalReservations,
+    (sum, customer) => sum + (customer.totalReservations || 0),
     0
   );
 
@@ -143,9 +178,9 @@ export default function Customers() {
       <div className="page-header">
         <div>
           <h1>Customers</h1>
-          <p>{customers.length} registered guests · {totalReservations} reservations total</p>
+          <p>{customers.length} registered guests - {totalReservations} reservations total</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal("add")}>
+        <button className="btn btn-primary" onClick={() => openModal("add")}>
           + Add Customer
         </button>
       </div>
@@ -153,9 +188,9 @@ export default function Customers() {
       <div className="card">
         <div className="toolbar">
           <div className="search-wrap">
-            <span className="search-icon">🔍</span>
+            <span className="search-icon">#</span>
             <input
-              placeholder="Search by name or email…"
+              placeholder="Search by name or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -163,11 +198,13 @@ export default function Customers() {
           <span className="toolbar-count">{filtered.length} customers</span>
         </div>
 
+        {error && <div className="error-state">{error}</div>}
+
         {loading ? (
-          <div className="loading-state">Loading customers…</div>
+          <div className="loading-state">Loading customers... Render may take a moment to wake up.</div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">⊙</div>
+            <div className="empty-icon">0</div>
             <p>No customers found.</p>
           </div>
         ) : (
@@ -183,36 +220,30 @@ export default function Customers() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => (
-                  <tr key={c.customerId}>
+                {filtered.map((customer) => (
+                  <tr key={customer.customerId}>
                     <td>
                       <div className="customer-name-cell">
-                        <Avatar name={c.fullName} />
+                        <Avatar name={customer.fullName} />
                         <div>
-                          <div className="customer-name">{c.fullName}</div>
-                          <div className="customer-id">ID #{c.customerId}</div>
+                          <div className="customer-name">{customer.fullName}</div>
+                          <div className="customer-id">ID #{customer.customerId}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="email-cell">{c.email}</td>
-                    <td>{c.phone}</td>
+                    <td className="email-cell">{customer.email}</td>
+                    <td>{customer.phone}</td>
                     <td>
                       <span className="res-count-badge">
-                        {c.totalReservations} stay{c.totalReservations !== 1 ? "s" : ""}
+                        {customer.totalReservations || 0} stay{customer.totalReservations !== 1 ? "s" : ""}
                       </span>
                     </td>
                     <td>
                       <div className="action-btns">
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() => setModal({ customer: c })}
-                        >
+                        <button className="btn btn-outline btn-sm" onClick={() => openModal({ customer })}>
                           Edit
                         </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(c.customerId)}
-                        >
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(customer.customerId)}>
                           Delete
                         </button>
                       </div>
@@ -226,17 +257,24 @@ export default function Customers() {
       </div>
 
       {modal === "add" && (
-        <Modal title="Add New Customer" onClose={() => setModal(null)}>
-          <CustomerForm onSubmit={handleAdd} onCancel={() => setModal(null)} />
+        <Modal title="Add New Customer" onClose={() => !saving && setModal(null)}>
+          <CustomerForm
+            onSubmit={handleSave}
+            onCancel={() => setModal(null)}
+            saving={saving}
+            error={formError}
+          />
         </Modal>
       )}
 
       {modal?.customer && (
-        <Modal title="Edit Customer" onClose={() => setModal(null)}>
+        <Modal title="Edit Customer" onClose={() => !saving && setModal(null)}>
           <CustomerForm
             initial={modal.customer}
-            onSubmit={handleEdit}
+            onSubmit={handleSave}
             onCancel={() => setModal(null)}
+            saving={saving}
+            error={formError}
           />
         </Modal>
       )}

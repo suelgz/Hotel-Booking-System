@@ -1,19 +1,18 @@
-// Sidebar.jsx - fixed left navigation
 import { NavLink } from "react-router-dom";
 import "./Sidebar.css";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: "⊞" },
-  { to: "/rooms", label: "Rooms", icon: "⊡" },
-  { to: "/reservations", label: "Reservations", icon: "◫" },
-  { to: "/customers", label: "Customers", icon: "⊙" },
+  { to: "/", label: "Dashboard", icon: "D" },
+  { to: "/rooms", label: "Rooms", icon: "R" },
+  { to: "/reservations", label: "Reservations", icon: "B" },
+  { to: "/customers", label: "Customers", icon: "C" },
 ];
 
 export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <span className="brand-icon">✦</span>
+        <span className="brand-icon">A</span>
         <div>
           <div className="brand-name">Aurum Hotel</div>
           <div className="brand-sub">Management System</div>
