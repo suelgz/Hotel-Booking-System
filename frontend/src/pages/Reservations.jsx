@@ -13,7 +13,9 @@ import "./Reservations.css";
 const STATUSES = ["Active", "Completed", "Cancelled"];
 
 function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }) {
-  const availableRooms = rooms.filter((room) => room.status === "Available");
+  const availableRooms = rooms.filter(
+    (room) => room.status !== "Maintenance" && room.status !== "Cleaning"
+  );
   const [form, setForm] = useState({
     customerName: "",
     roomNumber: availableRooms[0]?.roomNumber || "",
@@ -71,7 +73,7 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }
             onChange={(e) => set("roomNumber", e.target.value)}
             disabled={availableRooms.length === 0}
           >
-            {availableRooms.length === 0 && <option value="">No available rooms</option>}
+            {availableRooms.length === 0 && <option value="">No operational rooms</option>}
             {availableRooms.map((room) => (
               <option key={room.roomId} value={room.roomNumber}>
                 #{room.roomNumber} - {room.type} - ${room.pricePerNight}/night

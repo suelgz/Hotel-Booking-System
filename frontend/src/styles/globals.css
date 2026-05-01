@@ -294,6 +294,14 @@ tbody td {
   background: var(--yellow-bg);
   color: var(--yellow);
 }
+.badge-booked {
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+.badge-cleaning {
+  background: var(--gold-muted);
+  color: var(--gold);
+}
 .badge-maintenance {
   background: var(--gray-bg);
   color: var(--gray);

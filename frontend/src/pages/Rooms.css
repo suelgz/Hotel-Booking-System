@@ -21,3 +21,87 @@
   display: flex;
   gap: 6px;
 }
+
+.room-board {
+  padding: 20px;
+}
+
+.floor-section + .floor-section {
+  margin-top: 22px;
+}
+
+.floor-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.floor-header h2 {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.floor-header span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.room-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.room-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  background: var(--surface-2);
+}
+
+.room-card-top,
+.room-card-details,
+.room-card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.room-card-top {
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.room-card-number {
+  display: block;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.room-card-type,
+.room-card-details {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.room-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gray);
+  margin-top: 4px;
+}
+
+.room-card--available .room-status-dot { background: var(--green); }
+.room-card--booked .room-status-dot { background: var(--blue); }
+.room-card--occupied .room-status-dot { background: var(--yellow); }
+.room-card--cleaning .room-status-dot { background: var(--gold); }
+.room-card--maintenance .room-status-dot { background: var(--gray); }
+
+.room-card-footer {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 12px;
+}

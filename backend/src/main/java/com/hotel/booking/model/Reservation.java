@@ -51,9 +51,9 @@ public class Reservation implements Bookable, Cancelable {
 
     @Override
     public void book() {
-        if (room.isAvailable() && !isBooked && !isCancelled) {
+        if (!isBooked && !isCancelled) {
             this.isBooked = true;
-            room.setAvailable(false);
+            room.setStatus("Booked");
             int nights = (int) getNumberOfNights();
             this.totalPrice = room.calculatePrice(nights);
             this.status = "Active";
@@ -83,7 +83,6 @@ public class Reservation implements Bookable, Cancelable {
             this.isCancelled = true;
             this.isBooked = false;
             this.status = "Cancelled";
-            room.setAvailable(true);
             System.out.println("Reservation " + reservationId + " cancelled!");
         } else {
             System.out.println("Cannot cancel - not booked");
