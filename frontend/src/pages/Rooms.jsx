@@ -209,7 +209,7 @@ export default function Rooms() {
         {error && <div className="error-state">{error}</div>}
 
         {loading ? (
-          <div className="loading-state">Loading rooms... Render may take a moment to wake up.</div>
+          <div className="loading-state">Loading rooms... This may take a moment.</div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">0</div>

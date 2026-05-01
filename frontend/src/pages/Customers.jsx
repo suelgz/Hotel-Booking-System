@@ -201,7 +201,7 @@ export default function Customers() {
         {error && <div className="error-state">{error}</div>}
 
         {loading ? (
-          <div className="loading-state">Loading customers... Render may take a moment to wake up.</div>
+          <div className="loading-state">Loading customers... This may take a moment.</div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">0</div>

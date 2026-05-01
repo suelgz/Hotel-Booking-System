@@ -76,7 +76,7 @@ export default function Dashboard() {
   }, []);
 
   if (loading) {
-    return <div className="loading-state">Loading operations console... Render may take a moment to wake up.</div>;
+    return <div className="loading-state">Loading operations console... This may take a moment.</div>;
   }
 
   const safeSummary = summary || {
