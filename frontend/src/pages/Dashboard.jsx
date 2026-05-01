@@ -96,7 +96,7 @@ export default function Dashboard() {
       <div className="dash-welcome">
         <div>
           <h1 className="dash-heading">Operations Console</h1>
-          <p className="dash-sub">Room status, today's movement, and recent booking activity in one place.</p>
+          <p className="dash-sub">Room status, today's movement and recent booking activity in one place.</p>
         </div>
         <div className="dash-total-guests">
           <span>{safeSummary.occupancyRate}%</span> occupancy rate
