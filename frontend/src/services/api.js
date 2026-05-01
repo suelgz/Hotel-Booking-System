@@ -38,6 +38,19 @@ export async function getRooms() {
   return request("/rooms");
 }
 
+export async function getAvailability(checkInDate, checkOutDate) {
+  const params = new URLSearchParams({ checkInDate, checkOutDate });
+  return request(`/availability?${params.toString()}`);
+}
+
+export async function getDashboardSummary() {
+  return request("/dashboard/summary");
+}
+
+export async function getAuditLogs() {
+  return request("/audit-logs");
+}
+
 export async function createRoom(roomData) {
   return request("/rooms", {
     method: "POST",

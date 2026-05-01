@@ -5,7 +5,7 @@ import Modal from "../components/Modal";
 import "./Rooms.css";
 
 const ROOM_TYPES = ["Single", "Double", "Suite"];
-const STATUSES = ["Available", "Occupied", "Maintenance"];
+const STATUSES = ["Available", "Booked", "Occupied", "Cleaning", "Maintenance"];
 
 function RoomForm({ initial = {}, onSubmit, onCancel, saving, error }) {
   const [form, setForm] = useState({
@@ -171,6 +171,12 @@ export default function Rooms() {
     return matchSearch && matchType && matchStatus;
   });
 
+  const roomsByFloor = filtered.reduce((groups, room) => {
+    const floor = `${String(room.roomNumber || "0").charAt(0) || "0"}`;
+    const label = `Floor ${floor}`;
+    return { ...groups, [label]: [...(groups[label] || []), room] };
+  }, {});
+
   return (
     <div className="page-content">
       <div className="page-header">
@@ -210,40 +216,43 @@ export default function Rooms() {
             <p>No rooms match your filters.</p>
           </div>
         ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Room #</th>
-                  <th>Type</th>
-                  <th>Capacity</th>
-                  <th>Price / Night</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((room) => (
-                  <tr key={room.roomId}>
-                    <td><strong>#{room.roomNumber}</strong></td>
-                    <td><StatusBadge value={room.type} /></td>
-                    <td>{room.capacity} guest{room.capacity > 1 ? "s" : ""}</td>
-                    <td className="price-cell">${room.pricePerNight}<span>/night</span></td>
-                    <td><StatusBadge value={room.status} /></td>
-                    <td>
-                      <div className="action-btns">
-                        <button className="btn btn-outline btn-sm" onClick={() => openModal({ room })}>
-                          Edit
-                        </button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(room.roomId)}>
-                          Delete
-                        </button>
+          <div className="room-board">
+            {Object.entries(roomsByFloor).map(([floor, floorRooms]) => (
+              <section key={floor} className="floor-section">
+                <div className="floor-header">
+                  <h2>{floor}</h2>
+                  <span>{floorRooms.length} rooms</span>
+                </div>
+                <div className="room-card-grid">
+                  {floorRooms.map((room) => (
+                    <article key={room.roomId} className={`room-card room-card--${room.status?.toLowerCase()}`}>
+                      <div className="room-card-top">
+                        <div>
+                          <span className="room-card-number">Room {room.roomNumber}</span>
+                          <span className="room-card-type">{room.type}</span>
+                        </div>
+                        <span className="room-status-dot" />
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div className="room-card-details">
+                        <span>{room.capacity} guest{room.capacity > 1 ? "s" : ""}</span>
+                        <span>${room.pricePerNight}/night</span>
+                      </div>
+                      <div className="room-card-footer">
+                        <StatusBadge value={room.status} />
+                        <div className="action-btns">
+                          <button className="btn btn-outline btn-sm" onClick={() => openModal({ room })}>
+                            Edit
+                          </button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(room.roomId)}>
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>

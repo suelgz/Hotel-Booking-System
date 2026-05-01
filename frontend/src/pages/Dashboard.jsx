@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { getCustomers, getReservations, getRooms } from "../services/api";
+import { getAuditLogs, getDashboardSummary } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import "./Dashboard.css";
 
-function StatCard({ label, value, icon, accent, sub }) {
+function StatCard({ label, value, accent, sub }) {
   return (
     <div className={`stat-card stat-card--${accent}`}>
-      <div className="stat-icon">{icon}</div>
       <div className="stat-info">
         <div className="stat-value">{value}</div>
         <div className="stat-label">{label}</div>
@@ -16,26 +15,48 @@ function StatCard({ label, value, icon, accent, sub }) {
   );
 }
 
+function ReservationList({ title, reservations }) {
+  return (
+    <div className="card ops-list-card">
+      <div className="dash-card-header">
+        <span className="dash-card-title">{title}</span>
+      </div>
+      <div className="ops-list">
+        {reservations.length === 0 ? (
+          <div className="ops-empty">No scheduled records for today.</div>
+        ) : (
+          reservations.map((reservation) => (
+            <div key={reservation.reservationId} className="ops-row">
+              <div>
+                <strong>{reservation.customerName}</strong>
+                <span>Room {reservation.roomNumber}</span>
+              </div>
+              <StatusBadge value={reservation.status} />
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
-  const [rooms, setRooms] = useState([]);
-  const [reservations, setReservations] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function fetchAll() {
+    async function fetchDashboard() {
       setLoading(true);
       setError("");
       try {
-        const [roomData, reservationData, customerData] = await Promise.all([
-          getRooms(),
-          getReservations(),
-          getCustomers(),
+        const [summaryData, auditData] = await Promise.all([
+          getDashboardSummary(),
+          getAuditLogs(),
         ]);
-        setRooms(roomData);
-        setReservations(reservationData);
-        setCustomers(customerData);
+        setSummary(summaryData);
+        setAuditLogs(auditData.slice(0, 8));
       } catch (err) {
         setError(err.message);
       } finally {
@@ -43,103 +64,79 @@ export default function Dashboard() {
       }
     }
 
-    fetchAll();
+    fetchDashboard();
   }, []);
 
   if (loading) {
-    return <div className="loading-state">Loading dashboard... Render may take a moment to wake up.</div>;
+    return <div className="loading-state">Loading operations console... Render may take a moment to wake up.</div>;
   }
 
-  const totalRooms = rooms.length;
-  const available = rooms.filter((room) => room.status === "Available").length;
-  const occupied = rooms.filter((room) => room.status === "Occupied").length;
-  const maintenance = rooms.filter((room) => room.status === "Maintenance").length;
-  const activeRes = reservations.filter((reservation) => reservation.status === "Active").length;
-  const availablePercent = totalRooms ? Math.round((available / totalRooms) * 100) : 0;
-  const recentReservations = [...reservations].reverse().slice(0, 5);
+  const safeSummary = summary || {
+    totalRooms: 0,
+    availableRooms: 0,
+    bookedRooms: 0,
+    maintenanceRooms: 0,
+    activeReservations: 0,
+    occupancyRate: 0,
+    estimatedRevenue: 0,
+    todayArrivals: [],
+    todayDepartures: [],
+  };
 
   return (
     <div className="page-content">
       <div className="dash-welcome">
         <div>
-          <h1 className="dash-heading">Good morning</h1>
-          <p className="dash-sub">Here's what's happening at Aurum Hotel today.</p>
+          <h1 className="dash-heading">Operations Console</h1>
+          <p className="dash-sub">Room status, today movement, and booking activity from the Spring Boot API.</p>
         </div>
         <div className="dash-total-guests">
-          <span>{customers.length}</span> registered guests
+          <span>{safeSummary.occupancyRate}%</span> occupancy rate
         </div>
       </div>
 
       {error && <div className="error-state">{error}</div>}
 
-      <div className="stat-grid">
-        <StatCard label="Total Rooms" value={totalRooms} icon="#" accent="navy" />
+      <div className="stat-grid stat-grid--ops">
+        <StatCard label="Total Rooms" value={safeSummary.totalRooms} accent="navy" />
+        <StatCard label="Available Rooms" value={safeSummary.availableRooms} accent="green" />
+        <StatCard label="Booked Rooms" value={safeSummary.bookedRooms} accent="blue" />
+        <StatCard label="Maintenance" value={safeSummary.maintenanceRooms} accent="gold" />
+        <StatCard label="Active Reservations" value={safeSummary.activeReservations} accent="blue" />
         <StatCard
-          label="Available"
-          value={available}
-          icon="OK"
+          label="Estimated Revenue"
+          value={`$${Number(safeSummary.estimatedRevenue || 0).toLocaleString()}`}
           accent="green"
-          sub={`${availablePercent}% occupancy free`}
         />
-        <StatCard label="Occupied" value={occupied} icon="!" accent="gold" sub={`${maintenance} in maintenance`} />
-        <StatCard label="Active Reservations" value={activeRes} icon="R" accent="blue" />
       </div>
 
-      <div className="dash-bottom">
-        <div className="card dash-recent">
-          <div className="dash-card-header">
-            <span className="dash-card-title">Recent Reservations</span>
-            <a href="/reservations" className="dash-card-link">
-              View all
-            </a>
-          </div>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Guest</th>
-                  <th>Room</th>
-                  <th>Check-in</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentReservations.length === 0 ? (
-                  <tr>
-                    <td colSpan="5">No reservations yet.</td>
-                  </tr>
-                ) : (
-                  recentReservations.map((reservation) => (
-                    <tr key={reservation.reservationId}>
-                      <td className="res-id">{reservation.reservationId}</td>
-                      <td>{reservation.customerName}</td>
-                      <td>#{reservation.roomNumber}</td>
-                      <td>{reservation.checkInDate}</td>
-                      <td><StatusBadge value={reservation.status} /></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div className="ops-today-grid">
+        <ReservationList title="Today's Arrivals" reservations={safeSummary.todayArrivals || []} />
+        <ReservationList title="Today's Departures" reservations={safeSummary.todayDepartures || []} />
+      </div>
 
-        <div className="card dash-room-status">
-          <div className="dash-card-header">
-            <span className="dash-card-title">Room Status Overview</span>
-          </div>
-          <div className="room-status-list">
-            {rooms.map((room) => (
-              <div key={room.roomId} className="room-status-row">
-                <div className="room-status-left">
-                  <span className="room-num">#{room.roomNumber}</span>
-                  <span className="room-type-sm">{room.type}</span>
+      <div className="card activity-card">
+        <div className="dash-card-header">
+          <span className="dash-card-title">Activity Log</span>
+          <a href="/availability" className="dash-card-link">Check availability</a>
+        </div>
+        <div className="activity-list">
+          {auditLogs.length === 0 ? (
+            <div className="ops-empty">No activity recorded yet.</div>
+          ) : (
+            auditLogs.map((entry) => (
+              <div key={entry.id} className="activity-row">
+                <div>
+                  <div className="activity-action">{entry.action.replaceAll("_", " ")}</div>
+                  <div className="activity-message">{entry.message}</div>
                 </div>
-                <StatusBadge value={room.status} />
+                <div className="activity-meta">
+                  <span>{entry.type}</span>
+                  <time>{new Date(entry.timestamp).toLocaleString()}</time>
+                </div>
               </div>
-            ))}
-          </div>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import "./Header.css";
 const pageTitles = {
   "/": "Dashboard",
   "/rooms": "Room Management",
+  "/availability": "Availability",
   "/reservations": "Reservations",
   "/customers": "Customers",
 };
