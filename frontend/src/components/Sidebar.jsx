@@ -2,11 +2,11 @@ import { NavLink } from "react-router-dom";
 import "./Sidebar.css";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: "D" },
-  { to: "/rooms", label: "Rooms", icon: "R" },
-  { to: "/availability", label: "Availability", icon: "A" },
-  { to: "/reservations", label: "Reservations", icon: "B" },
-  { to: "/customers", label: "Customers", icon: "C" },
+  { to: "/", label: "Dashboard", icon: "DB" },
+  { to: "/rooms", label: "Rooms", icon: "RM" },
+  { to: "/availability", label: "Availability", icon: "AV" },
+  { to: "/reservations", label: "Reservations", icon: "RS" },
+  { to: "/customers", label: "Customers", icon: "CU" },
 ];
 
 export default function Sidebar() {
@@ -40,7 +40,7 @@ export default function Sidebar() {
       <div className="sidebar-footer">
         <div className="sidebar-footer-info">
           <div className="footer-dot"></div>
-          <span>Spring Boot API ready</span>
+          <span>Operations ready</span>
         </div>
       </div>
     </aside>
