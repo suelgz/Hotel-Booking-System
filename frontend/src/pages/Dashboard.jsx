@@ -51,12 +51,20 @@ export default function Dashboard() {
       setLoading(true);
       setError("");
       try {
-        const [summaryData, auditData] = await Promise.all([
+        const [summaryResult, auditResult] = await Promise.allSettled([
           getDashboardSummary(),
           getAuditLogs(),
         ]);
-        setSummary(summaryData);
-        setAuditLogs(auditData.slice(0, 8));
+
+        if (summaryResult.status === "fulfilled") {
+          setSummary(summaryResult.value);
+        } else {
+          setError("Dashboard data is unavailable right now. Please refresh in a moment.");
+        }
+
+        if (auditResult.status === "fulfilled") {
+          setAuditLogs(auditResult.value.slice(0, 8));
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -88,7 +96,7 @@ export default function Dashboard() {
       <div className="dash-welcome">
         <div>
           <h1 className="dash-heading">Operations Console</h1>
-          <p className="dash-sub">Room status, today movement, and booking activity from the Spring Boot API.</p>
+          <p className="dash-sub">Room status, today's movement, and recent booking activity in one place.</p>
         </div>
         <div className="dash-total-guests">
           <span>{safeSummary.occupancyRate}%</span> occupancy rate

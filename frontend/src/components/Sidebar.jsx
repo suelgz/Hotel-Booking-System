@@ -40,7 +40,7 @@ export default function Sidebar() {
       <div className="sidebar-footer">
         <div className="sidebar-footer-info">
           <div className="footer-dot"></div>
-          <span>Spring Boot API ready</span>
+          <span>Operations ready</span>
         </div>
       </div>
     </aside>
