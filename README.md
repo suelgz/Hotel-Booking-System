@@ -4,8 +4,7 @@ A full-stack hotel booking management system built as a student portfolio projec
 
 ## Live Demo
 
-- Frontend: https://hotel-booking-system-mocha.vercel.app/
-- Backend API example: https://hotel-booking-system-k8x2.onrender.com/api/rooms
+ https://hotel-booking-system-mocha.vercel.app/
 
 The backend is hosted on Render's free plan. If it has been idle, the first request can take about 30-60 seconds while the service wakes up.
 
