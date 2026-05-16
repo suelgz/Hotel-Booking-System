@@ -24,6 +24,7 @@ public class BookingService {
     private static final List<String> ROOM_STATUSES = List.of(
             "Available", "Booked", "Occupied", "Cleaning", "Maintenance"
     );
+    private static final List<String> ROOM_TYPES = List.of("Single", "Double", "Suite");
 
     private final List<Room> rooms = new ArrayList<>();
     private final List<Customer> customers = new ArrayList<>();
@@ -54,6 +55,7 @@ public class BookingService {
 
     public Room addRoom(Room newRoom) {
         validateRoom(newRoom);
+        newRoom.setPrice(fixedPriceForType(newRoom.getType()));
         newRoom.setRoomId(roomIdCounter.getAndIncrement());
         if (newRoom.getStatus() == null || newRoom.getStatus().isBlank()) {
             newRoom.setStatus("Available");
@@ -75,7 +77,7 @@ public class BookingService {
         room.setRoomNumber(updated.getRoomNumber());
         room.setType(updated.getType());
         room.setCapacity(updated.getCapacity());
-        room.setPrice(updated.getPricePerNight());
+        room.setPrice(fixedPriceForType(updated.getType()));
         room.setStatus(updated.getStatus());
         auditLogService.record(
                 "ROOM_UPDATED",
@@ -297,6 +299,8 @@ public class BookingService {
     }
 
     private void addSeedRoom(Room room) {
+        room.setType(normalizeRoomType(room.getType()));
+        room.setPrice(fixedPriceForType(room.getType()));
         room.setRoomId(roomIdCounter.getAndIncrement());
         rooms.add(room);
     }
@@ -308,18 +312,29 @@ public class BookingService {
         if (room.getCapacity() <= 0) {
             throw new IllegalArgumentException("Room capacity must be at least 1.");
         }
-        if (room.getPricePerNight() < 0) {
-            throw new IllegalArgumentException("Price per night cannot be negative.");
-        }
         if (room.getType() == null || room.getType().isBlank()) {
             room.setType("Single");
         }
+        room.setType(normalizeRoomType(room.getType()));
         if (room.getStatus() == null || room.getStatus().isBlank()) {
             room.setStatus("Available");
         }
         if (!ROOM_STATUSES.contains(room.getStatus())) {
             throw new IllegalArgumentException("Room status must be Available, Booked, Occupied, Cleaning, or Maintenance.");
         }
+    }
+
+    private double fixedPriceForType(String type) {
+        if ("Double".equalsIgnoreCase(type)) return 120.0;
+        if ("Suite".equalsIgnoreCase(type)) return 300.0;
+        return 100.0;
+    }
+
+    private String normalizeRoomType(String type) {
+        return ROOM_TYPES.stream()
+                .filter(candidate -> candidate.equalsIgnoreCase(type))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Room type must be Single, Double, or Suite."));
     }
 
     private void validateReservation(String customerName, String roomNumber, LocalDate checkIn, LocalDate checkOut)

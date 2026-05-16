@@ -31,8 +31,7 @@ public class SuiteRoom extends Room {
 
     @Override
     public double calculatePrice(int numberOfNights) {
-        double totalPrice = (getPrice() + luxuryFee) * numberOfNights;
-        return totalPrice;
+        return getPrice() * numberOfNights;
     }
 
     @Override

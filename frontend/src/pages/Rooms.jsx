@@ -6,13 +6,17 @@ import "./Rooms.css";
 
 const ROOM_TYPES = ["Single", "Double", "Suite"];
 const STATUSES = ["Available", "Booked", "Occupied", "Cleaning", "Maintenance"];
+const ROOM_PRICES = {
+  Single: 100,
+  Double: 120,
+  Suite: 300,
+};
 
 function RoomForm({ initial = {}, onSubmit, onCancel, saving, error }) {
   const [form, setForm] = useState({
     roomNumber: initial.roomNumber || "",
     type: initial.type || "Single",
     capacity: initial.capacity || "",
-    pricePerNight: initial.pricePerNight || "",
     status: initial.status || "Available",
   });
 
@@ -25,9 +29,10 @@ function RoomForm({ initial = {}, onSubmit, onCancel, saving, error }) {
       ...form,
       roomNumber: form.roomNumber.trim(),
       capacity: Number(form.capacity),
-      pricePerNight: Number(form.pricePerNight),
     });
   };
+
+  const fixedPrice = ROOM_PRICES[form.type] || ROOM_PRICES.Single;
 
   return (
     <form onSubmit={handleSubmit}>
@@ -57,14 +62,11 @@ function RoomForm({ initial = {}, onSubmit, onCancel, saving, error }) {
             />
           </div>
           <div className="form-group">
-            <label>Price / Night ($)</label>
-            <input
-              type="number"
-              min="0"
-              value={form.pricePerNight}
-              onChange={(e) => set("pricePerNight", e.target.value)}
-              placeholder="149"
-            />
+            <label>Fixed Price / Night</label>
+            <div className="fixed-price-display">
+              <strong>${fixedPrice}</strong>
+              <span>set by room type</span>
+            </div>
           </div>
         </div>
         <div className="form-group">
@@ -115,9 +117,8 @@ export default function Rooms() {
   }, []);
 
   const validate = (data) => {
-    if (!data.roomNumber || !data.capacity || data.pricePerNight === "") return "Please fill in all fields.";
+    if (!data.roomNumber || !data.capacity) return "Please fill in all fields.";
     if (data.capacity < 1) return "Capacity must be at least 1 guest.";
-    if (data.pricePerNight < 0) return "Price per night cannot be negative.";
     return "";
   };
 
