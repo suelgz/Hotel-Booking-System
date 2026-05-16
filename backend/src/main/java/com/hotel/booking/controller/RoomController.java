@@ -50,7 +50,6 @@ public class RoomController {
         room.setRoomNumber(readString(body, "roomNumber"));
         room.setType(readString(body, "type"));
         room.setCapacity(readInt(body, "capacity"));
-        room.setPrice(readDouble(body, "pricePerNight", "price"));
         room.setStatus(readString(body, "status"));
         return room;
     }
@@ -66,9 +65,4 @@ public class RoomController {
         return Integer.parseInt(value.toString());
     }
 
-    private double readDouble(Map<String, Object> body, String preferredKey, String fallbackKey) {
-        Object value = body.getOrDefault(preferredKey, body.get(fallbackKey));
-        if (value instanceof Number number) return number.doubleValue();
-        return Double.parseDouble(value.toString());
-    }
 }

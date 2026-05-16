@@ -137,6 +137,43 @@ class BookingServiceTest {
     }
 
     @Test
+    void roomPriceIsFixedByRoomTypeEvenWhenCustomPriceIsProvided() {
+        BookingService service = newService(new AuditLogService());
+        Room room = new Room();
+        room.setRoomNumber("301");
+        room.setType("Suite");
+        room.setCapacity(3);
+        room.setPricePerNight(1.0);
+        room.setStatus("Available");
+
+        Room created = service.addRoom(room);
+
+        assertEquals(300.0, created.getPricePerNight());
+    }
+
+    @Test
+    void updatingRoomTypeRecalculatesFixedPrice() {
+        BookingService service = newService(new AuditLogService());
+        Room room = new Room();
+        room.setRoomNumber("302");
+        room.setType("Single");
+        room.setCapacity(1);
+        room.setStatus("Available");
+        Room created = service.addRoom(room);
+
+        Room update = new Room();
+        update.setRoomNumber("302");
+        update.setType("Double");
+        update.setCapacity(2);
+        update.setPricePerNight(999.0);
+        update.setStatus("Available");
+
+        Room updated = service.updateRoom(created.getRoomId(), update);
+
+        assertEquals(120.0, updated.getPricePerNight());
+    }
+
+    @Test
     void rejectsInvalidReservationDates() {
         BookingService service = newService(new AuditLogService());
 
