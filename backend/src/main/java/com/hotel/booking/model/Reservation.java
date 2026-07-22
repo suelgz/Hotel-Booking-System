@@ -10,14 +10,10 @@ public class Reservation implements Bookable, Cancelable {
     private Customer customer;
     private Room room;
     private double totalPrice;
-    private boolean isBooked;
-    private boolean isCancelled;
     private Payment payment;
     private LocalDate checkInDate;
     private LocalDate checkOutDate;
-
-    // API için eklendi - frontend status gösteriyor
-    private String status;
+    private ReservationStatus status = ReservationStatus.ACTIVE;
 
     public Reservation() {}
 
@@ -28,9 +24,7 @@ public class Reservation implements Bookable, Cancelable {
         this.room = room;
         this.checkInDate = checkInDate;
         this.checkOutDate = checkOutDate;
-        this.isBooked = false;
-        this.isCancelled = false;
-        this.status = "Active";
+        this.status = ReservationStatus.ACTIVE;
     }
 
     public String getReservationId() { return reservationId; }
@@ -42,8 +36,10 @@ public class Reservation implements Bookable, Cancelable {
     public Payment getPayment() { return payment; }
     public LocalDate getCheckInDate() { return checkInDate; }
     public LocalDate getCheckOutDate() { return checkOutDate; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getStatus() { return getEffectiveStatus().getDisplayName(); }
+    public void setStatus(String status) { this.status = ReservationStatus.fromDisplayName(status); }
+    @JsonIgnore
+    public ReservationStatus getReservationStatus() { return getEffectiveStatus(); }
 
     public long getNumberOfNights() {
         return ChronoUnit.DAYS.between(checkInDate, checkOutDate);
@@ -51,41 +47,24 @@ public class Reservation implements Bookable, Cancelable {
 
     @Override
     public void book() {
-        if (!isBooked && !isCancelled) {
-            this.isBooked = true;
-            room.setStatus("Booked");
+        if (status != ReservationStatus.CANCELLED) {
             int nights = (int) getNumberOfNights();
             this.totalPrice = room.calculatePrice(nights);
-            this.status = "Active";
-
-            System.out.println("Reservation " + reservationId + " booked!");
-            System.out.println("Customer: " + customer.getName());
-            System.out.println("Room: " + room.getRoomNumber());
-            System.out.println("Check-in: " + checkInDate);
-            System.out.println("Check-out: " + checkOutDate);
-            System.out.println("Nights: " + nights);
-            System.out.println("Total: " + totalPrice);
+            this.status = ReservationStatus.ACTIVE;
             customer.addReservation(this);
-        } else {
-            System.out.println("You can't book the room, it is not available!");
         }
     }
 
     @Override
-    public boolean isBooked() { return isBooked; }
+    public boolean isBooked() { return getEffectiveStatus() == ReservationStatus.ACTIVE; }
 
     @Override
-    public boolean isCancelled() { return isCancelled; }
+    public boolean isCancelled() { return status == ReservationStatus.CANCELLED; }
 
     @Override
     public void cancel() {
-        if (isBooked && !isCancelled) {
-            this.isCancelled = true;
-            this.isBooked = false;
-            this.status = "Cancelled";
-            System.out.println("Reservation " + reservationId + " cancelled!");
-        } else {
-            System.out.println("Cannot cancel - not booked");
+        if (getEffectiveStatus() == ReservationStatus.ACTIVE) {
+            this.status = ReservationStatus.CANCELLED;
         }
     }
 
@@ -93,13 +72,9 @@ public class Reservation implements Bookable, Cancelable {
         if (payment.processPayment()) {
             this.payment = payment;
             payment.completePayment();
-            System.out.println("Payment completed for reservation " + reservationId);
-        } else {
-            System.out.println("Payment failed");
         }
     }
 
-    // --- API için eklendi - frontend flat field'lar bekliyor ---
     public String getCustomerName() {
         return customer != null ? customer.getFullName() : "";
     }
@@ -114,5 +89,28 @@ public class Reservation implements Bookable, Cancelable {
 
     public Long getRoomId() {
         return room != null ? room.getRoomId() : null;
+    }
+
+    public boolean overlaps(LocalDate checkIn, LocalDate checkOut) {
+        return checkInDate.isBefore(checkOut) && checkIn.isBefore(checkOutDate);
+    }
+
+    public boolean isCurrentStay(LocalDate date) {
+        return getEffectiveStatus() == ReservationStatus.ACTIVE
+                && !checkInDate.isAfter(date)
+                && checkOutDate.isAfter(date);
+    }
+
+    public boolean isUpcoming(LocalDate date) {
+        return getEffectiveStatus() == ReservationStatus.ACTIVE && checkInDate.isAfter(date);
+    }
+
+    private ReservationStatus getEffectiveStatus() {
+        if (status == ReservationStatus.ACTIVE
+                && checkOutDate != null
+                && !LocalDate.now().isBefore(checkOutDate)) {
+            return ReservationStatus.COMPLETED;
+        }
+        return status;
     }
 }

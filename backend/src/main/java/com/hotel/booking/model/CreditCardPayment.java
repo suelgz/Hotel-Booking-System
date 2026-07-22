@@ -15,25 +15,13 @@ public class CreditCardPayment extends Payment {
 
     @Override
     public boolean processPayment() {
-        System.out.println("Processing credit card payment for " + cardHolderName + "...");
-        try {
-            if (cardNumber.length() < 16) {
-                throw new IllegalArgumentException("Card number is not valid");
-            }
-            if (cardHolderName == null) {
-                throw new IllegalArgumentException("Card Holder Name is null");
-            }
-            if (cardHolderName.matches(".*\\d.*")) {
-                throw new IllegalArgumentException("Name must contain only letters.");
-            }
-            if (expiryDate == null) {
-                throw new IllegalArgumentException("Expiry Date can't be empty");
-            }
-        } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
+        if (cardNumber == null || cardNumber.length() < 16) {
             return false;
         }
-        return true;
+        return cardHolderName != null
+                && !cardHolderName.matches(".*\\d.*")
+                && expiryDate != null
+                && !expiryDate.isBlank();
     }
 
     public String getCardNumber() { return cardNumber; }

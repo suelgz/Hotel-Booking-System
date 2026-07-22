@@ -1,14 +1,21 @@
 package com.hotel.booking.controller;
 
+import com.hotel.booking.dto.ReservationRequest;
 import com.hotel.booking.exception.InvalidCustomerDataException;
 import com.hotel.booking.exception.InvalidReservationDataException;
 import com.hotel.booking.exception.RoomNotAvailableException;
 import com.hotel.booking.model.Reservation;
 import com.hotel.booking.service.BookingService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -28,13 +35,13 @@ public class ReservationController {
     }
 
     @PostMapping
-    public ResponseEntity<Reservation> createReservation(@RequestBody Map<String, String> body)
+    public ResponseEntity<Reservation> createReservation(@Valid @RequestBody ReservationRequest request)
             throws RoomNotAvailableException, InvalidCustomerDataException, InvalidReservationDataException {
         Reservation created = bookingService.createReservation(
-                body.get("customerName"),
-                body.get("roomNumber"),
-                LocalDate.parse(body.getOrDefault("checkInDate", "")),
-                LocalDate.parse(body.getOrDefault("checkOutDate", ""))
+                request.customerName(),
+                request.roomNumber(),
+                request.checkInDate(),
+                request.checkOutDate()
         );
         return ResponseEntity.ok(created);
     }

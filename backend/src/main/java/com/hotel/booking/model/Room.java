@@ -1,27 +1,29 @@
 package com.hotel.booking.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Room {
     private String roomNumber;
     private int capacity;
     private double price;
-    private boolean isAvailable;
     private Long roomId;
-    private String type;
-    private String status;
+    private RoomType type = RoomType.SINGLE;
+    private RoomStatus status = RoomStatus.AVAILABLE;
 
     public Room() {}
 
     public Room(String roomNumber, int capacity, double price, boolean isAvailable) {
-        validateInitialState(roomNumber, capacity, price);
-        this.roomNumber = roomNumber.trim();
+        this.roomNumber = roomNumber;
         this.capacity = capacity;
         this.price = price;
-        this.isAvailable = isAvailable;
-        this.status = isAvailable ? "Available" : "Occupied";
+        this.status = isAvailable ? RoomStatus.AVAILABLE : RoomStatus.OCCUPIED;
     }
 
     public Room(String roomNumber, int capacity, double price) {
-        this(roomNumber, capacity, price, true);
+        this.roomNumber = roomNumber;
+        this.capacity = capacity;
+        this.price = price;
+        this.status = RoomStatus.AVAILABLE;
     }
 
     public double calculatePrice(int numberOfNights) {
@@ -35,55 +37,32 @@ public class Room {
     public void setCapacity(int capacity) { this.capacity = capacity; }
 
     public double getPrice() { return price; }
-    public void setPrice(double price) {
-        validatePrice(price);
-        this.price = price;
-    }
+    public void setPrice(double price) { this.price = price; }
 
-    public boolean isAvailable() { return isAvailable; }
+    public boolean isAvailable() { return status == RoomStatus.AVAILABLE; }
     public void setAvailable(boolean available) {
-        isAvailable = available;
-        if (!"Maintenance".equals(this.status) && !"Cleaning".equals(this.status)) {
-            this.status = available ? "Available" : "Occupied";
+        if (status != RoomStatus.MAINTENANCE && status != RoomStatus.CLEANING) {
+            this.status = available ? RoomStatus.AVAILABLE : RoomStatus.OCCUPIED;
         }
     }
 
-    public void printAvailable() {
-        if (isAvailable) {
-            System.out.println("Room is available");
-        } else {
-            System.out.println("Room is not available");
-        }
-    }
+    public void printAvailable() {}
 
     public Long getRoomId() { return roomId; }
     public void setRoomId(Long roomId) { this.roomId = roomId; }
 
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public String getType() { return type.getDisplayName(); }
+    public void setType(String type) { this.type = RoomType.fromDisplayName(type); }
+    @JsonIgnore
+    public RoomType getRoomType() { return type; }
+    public void setRoomType(RoomType type) { this.type = type == null ? RoomType.SINGLE : type; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) {
-        this.status = status == null || status.isBlank() ? "Available" : status;
-        this.isAvailable = "Available".equals(this.status);
-    }
+    public String getStatus() { return status.getDisplayName(); }
+    public void setStatus(String status) { this.status = RoomStatus.fromDisplayName(status); }
+    @JsonIgnore
+    public RoomStatus getRoomStatus() { return status; }
+    public void setRoomStatus(RoomStatus status) { this.status = status == null ? RoomStatus.AVAILABLE : status; }
 
     public double getPricePerNight() { return price; }
-    public void setPricePerNight(double pricePerNight) { setPrice(pricePerNight); }
-
-    private void validateInitialState(String roomNumber, int capacity, double price) {
-        if (roomNumber == null || roomNumber.isBlank()) {
-            throw new IllegalArgumentException("Room number is required.");
-        }
-        if (capacity <= 0) {
-            throw new IllegalArgumentException("Room capacity must be at least 1.");
-        }
-        validatePrice(price);
-    }
-
-    private void validatePrice(double price) {
-        if (price < 0) {
-            throw new IllegalArgumentException("Price per night cannot be negative.");
-        }
-    }
+    public void setPricePerNight(double pricePerNight) { this.price = pricePerNight; }
 }

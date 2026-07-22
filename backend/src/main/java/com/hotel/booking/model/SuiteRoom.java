@@ -12,7 +12,7 @@ public class SuiteRoom extends Room {
         this.luxuryFee = luxuryFee;
         this.suiteLevel = suiteLevel;
         this.hasLivingRoom = hasLivingRoom;
-        setType("Suite");
+        setRoomType(RoomType.SUITE);
     }
 
     public double getLuxuryFee() { return luxuryFee; }
@@ -25,14 +25,11 @@ public class SuiteRoom extends Room {
     public void setHasLivingRoom(boolean hasLivingRoom) { this.hasLivingRoom = hasLivingRoom; }
 
     @Override
-    public void printAvailable() {
-        System.out.println("Suite Room availability: " + isAvailable());
-    }
+    public void printAvailable() {}
 
     @Override
     public double calculatePrice(int numberOfNights) {
-        double totalPrice = (getPrice() + luxuryFee) * numberOfNights;
-        return totalPrice;
+        return getPrice() * numberOfNights;
     }
 
     @Override

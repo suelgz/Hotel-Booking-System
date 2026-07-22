@@ -4,14 +4,11 @@ public class StandardRoom extends Room {
 
     public StandardRoom(String roomNumber, int capacity, double price, boolean isAvailable) {
         super(roomNumber, capacity, price, isAvailable);
-        // capacity'ye göre otomatik type belirleniyor
-        setType(capacity <= 1 ? "Single" : "Double");
+        setRoomType(RoomType.fromCapacity(capacity));
     }
 
     @Override
-    public void printAvailable() {
-        System.out.println("Standard Room availability: " + isAvailable());
-    }
+    public void printAvailable() {}
 
     @Override
     public double calculatePrice(int numberOfNights) {

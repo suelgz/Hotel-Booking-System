@@ -2,10 +2,14 @@ package com.hotel.booking.service;
 
 import com.hotel.booking.exception.InvalidCustomerDataException;
 import com.hotel.booking.exception.InvalidReservationDataException;
+import com.hotel.booking.exception.InvalidRoomDataException;
 import com.hotel.booking.exception.RoomNotAvailableException;
 import com.hotel.booking.model.Customer;
 import com.hotel.booking.model.Reservation;
+import com.hotel.booking.model.ReservationStatus;
 import com.hotel.booking.model.Room;
+import com.hotel.booking.model.RoomStatus;
+import com.hotel.booking.model.RoomType;
 import com.hotel.booking.model.StandardRoom;
 import com.hotel.booking.model.SuiteRoom;
 import org.springframework.stereotype.Service;
@@ -21,10 +25,6 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class BookingService {
 
-    private static final List<String> ROOM_STATUSES = List.of(
-            "Available", "Booked", "Occupied", "Cleaning", "Maintenance"
-    );
-
     private final List<Room> rooms = new ArrayList<>();
     private final List<Customer> customers = new ArrayList<>();
     private final List<Reservation> reservations = new ArrayList<>();
@@ -37,28 +37,23 @@ public class BookingService {
     public BookingService(AuditLogService auditLogService) {
         this.auditLogService = auditLogService;
 
-        addSeedRoom(new StandardRoom("101", 2, 100.0, true));
-        addSeedRoom(new StandardRoom("102", 2, 100.0, true));
-
-        StandardRoom doubleRoom = new StandardRoom("103", 4, 120.0, true);
-        doubleRoom.setType("Double");
-        addSeedRoom(doubleRoom);
-
-        addSeedRoom(new SuiteRoom("201", 2, 250.0, true, 50, "Deluxe", true));
-        addSeedRoom(new SuiteRoom("202", 6, 300.0, true, 75, "Presidential", true));
+        addSeedRoom(new StandardRoom("101", 2, RoomType.SINGLE.getPricePerNight(), true));
+        addSeedRoom(new StandardRoom("102", 2, RoomType.SINGLE.getPricePerNight(), true));
+        addSeedRoom(new StandardRoom("103", 4, RoomType.DOUBLE.getPricePerNight(), true));
+        addSeedRoom(new SuiteRoom("201", 2, RoomType.SUITE.getPricePerNight(), true, 50, "Deluxe", true));
+        addSeedRoom(new SuiteRoom("202", 6, RoomType.SUITE.getPricePerNight(), true, 75, "Presidential", true));
     }
 
     public List<Room> getAllRooms() {
+        refreshAllRoomStatuses();
         return new ArrayList<>(rooms);
     }
 
-    public Room addRoom(Room newRoom) {
-        validateRoom(newRoom);
+    public Room addRoom(Room newRoom) throws InvalidRoomDataException {
+        validateRoom(newRoom, null);
         newRoom.setRoomId(roomIdCounter.getAndIncrement());
-        if (newRoom.getStatus() == null || newRoom.getStatus().isBlank()) {
-            newRoom.setStatus("Available");
-        }
         rooms.add(newRoom);
+        refreshRoomStatus(newRoom);
         auditLogService.record(
                 "ROOM_CREATED",
                 "Room " + newRoom.getRoomNumber() + " created",
@@ -67,16 +62,17 @@ public class BookingService {
         return newRoom;
     }
 
-    public Room updateRoom(Long roomId, Room updated) {
-        validateRoom(updated);
+    public Room updateRoom(Long roomId, Room updated) throws InvalidRoomDataException {
         Room room = findRoomById(roomId);
         if (room == null) return null;
 
+        validateRoom(updated, roomId);
         room.setRoomNumber(updated.getRoomNumber());
-        room.setType(updated.getType());
+        room.setRoomType(updated.getRoomType());
         room.setCapacity(updated.getCapacity());
-        room.setPrice(updated.getPricePerNight());
-        room.setStatus(updated.getStatus());
+        room.setPrice(updated.getRoomType().getPricePerNight());
+        room.setRoomStatus(updated.getRoomStatus());
+        refreshRoomStatus(room);
         auditLogService.record(
                 "ROOM_UPDATED",
                 "Room " + room.getRoomNumber() + " updated",
@@ -85,9 +81,12 @@ public class BookingService {
         return room;
     }
 
-    public boolean deleteRoom(Long roomId) {
+    public boolean deleteRoom(Long roomId) throws InvalidRoomDataException {
         Room room = findRoomById(roomId);
         if (room == null) return false;
+        if (hasAnyActiveReservation(room)) {
+            throw new InvalidRoomDataException("Room has active or upcoming reservations and cannot be deleted.");
+        }
         rooms.remove(room);
         auditLogService.record(
                 "ROOM_DELETED",
@@ -103,7 +102,13 @@ public class BookingService {
 
     public Customer addCustomer(String name, String surname, String email, String phone)
             throws InvalidCustomerDataException {
-        Customer customer = new Customer(clean(name), clean(surname), clean(email), clean(phone));
+        String cleanedName = clean(name);
+        String cleanedSurname = clean(surname);
+        String cleanedEmail = clean(email);
+        String cleanedPhone = clean(phone);
+        validateCustomer(cleanedName, cleanedSurname, cleanedEmail, cleanedPhone);
+
+        Customer customer = new Customer(cleanedName, cleanedSurname, cleanedEmail, cleanedPhone);
         customer.setCustomerId(customerIdCounter.getAndIncrement());
         customers.add(customer);
         auditLogService.record(
@@ -158,11 +163,11 @@ public class BookingService {
         validateReservation(customerName, roomNumber, checkIn, checkOut);
 
         Room room = rooms.stream()
-                .filter(r -> r.getRoomNumber().equals(roomNumber.trim()))
+                .filter(r -> r.getRoomNumber().equals(clean(roomNumber)))
                 .findFirst()
                 .orElseThrow(() -> new RoomNotAvailableException("Room not found: " + roomNumber));
 
-        if ("Maintenance".equals(room.getStatus()) || "Cleaning".equals(room.getStatus())) {
+        if (room.getRoomStatus().blocksBooking()) {
             throw new RoomNotAvailableException("Room " + room.getRoomNumber() + " is not ready for booking.");
         }
         if (hasOverlappingActiveReservation(room, checkIn, checkOut)) {
@@ -206,6 +211,7 @@ public class BookingService {
     public Map<String, Object> getAvailability(LocalDate checkIn, LocalDate checkOut)
             throws InvalidReservationDataException {
         validateStayDates(checkIn, checkOut);
+        refreshAllRoomStatuses();
         List<Room> availableRooms = rooms.stream()
                 .filter(room -> isRoomAvailableForDates(room, checkIn, checkOut))
                 .toList();
@@ -219,19 +225,20 @@ public class BookingService {
     }
 
     public Map<String, Object> getDashboardSummary() {
+        refreshAllRoomStatuses();
         LocalDate today = LocalDate.now();
         long totalRooms = rooms.size();
-        long availableRooms = rooms.stream().filter(room -> "Available".equals(room.getStatus())).count();
-        long bookedRooms = rooms.stream().filter(room -> "Booked".equals(room.getStatus())).count();
-        long maintenanceRooms = rooms.stream().filter(room -> "Maintenance".equals(room.getStatus())).count();
+        long availableRooms = rooms.stream().filter(room -> room.getRoomStatus() == RoomStatus.AVAILABLE).count();
+        long bookedRooms = rooms.stream().filter(room -> room.getRoomStatus() == RoomStatus.BOOKED).count();
+        long occupiedRooms = rooms.stream().filter(room -> room.getRoomStatus() == RoomStatus.OCCUPIED).count();
+        long maintenanceRooms = rooms.stream().filter(room -> room.getRoomStatus() == RoomStatus.MAINTENANCE).count();
         List<Reservation> activeReservations = getActiveReservations();
         long cancelledReservations = reservations.stream()
-                .filter(reservation -> "Cancelled".equals(reservation.getStatus()))
+                .filter(Reservation::isCancelled)
                 .count();
-        long occupiedRooms = rooms.stream().filter(room -> "Occupied".equals(room.getStatus())).count();
         int occupancyRate = totalRooms == 0
                 ? 0
-                : (int) Math.round(((double) (bookedRooms + occupiedRooms) / totalRooms) * 100);
+                : (int) Math.round(((double) occupiedRooms / totalRooms) * 100);
         double estimatedRevenue = activeReservations.stream()
                 .mapToDouble(Reservation::getTotalPrice)
                 .sum();
@@ -247,6 +254,7 @@ public class BookingService {
         summary.put("totalRooms", totalRooms);
         summary.put("availableRooms", availableRooms);
         summary.put("bookedRooms", bookedRooms);
+        summary.put("occupiedRooms", occupiedRooms);
         summary.put("maintenanceRooms", maintenanceRooms);
         summary.put("activeReservations", activeReservations.size());
         summary.put("cancelledReservations", cancelledReservations);
@@ -259,66 +267,82 @@ public class BookingService {
     }
 
     private boolean isRoomAvailableForDates(Room room, LocalDate checkIn, LocalDate checkOut) {
-        if ("Maintenance".equals(room.getStatus()) || "Cleaning".equals(room.getStatus())) {
-            return false;
-        }
-        return !hasOverlappingActiveReservation(room, checkIn, checkOut);
+        return !room.getRoomStatus().blocksBooking() && !hasOverlappingActiveReservation(room, checkIn, checkOut);
     }
 
     private boolean hasOverlappingActiveReservation(Room room, LocalDate checkIn, LocalDate checkOut) {
         return getActiveReservations().stream()
                 .filter(reservation -> reservation.getRoomId().equals(room.getRoomId()))
-                .anyMatch(reservation -> datesOverlap(
-                        reservation.getCheckInDate(),
-                        reservation.getCheckOutDate(),
-                        checkIn,
-                        checkOut
-                ));
+                .anyMatch(reservation -> reservation.overlaps(checkIn, checkOut));
     }
 
-    private boolean datesOverlap(LocalDate existingCheckIn, LocalDate existingCheckOut,
-                                 LocalDate requestedCheckIn, LocalDate requestedCheckOut) {
-        return existingCheckIn.isBefore(requestedCheckOut) && requestedCheckIn.isBefore(existingCheckOut);
+    private boolean hasAnyActiveReservation(Room room) {
+        return getActiveReservations().stream()
+                .anyMatch(reservation -> reservation.getRoomId().equals(room.getRoomId()));
     }
 
     private List<Reservation> getActiveReservations() {
         return reservations.stream()
-                .filter(reservation -> "Active".equals(reservation.getStatus()))
+                .filter(reservation -> reservation.getReservationStatus() == ReservationStatus.ACTIVE)
                 .toList();
     }
 
+    private void refreshAllRoomStatuses() {
+        rooms.forEach(this::refreshRoomStatus);
+    }
+
     private void refreshRoomStatus(Room room) {
-        if ("Maintenance".equals(room.getStatus()) || "Cleaning".equals(room.getStatus())) {
+        if (room.getRoomStatus().blocksBooking()) {
             return;
         }
-        boolean hasActiveReservation = getActiveReservations().stream()
-                .anyMatch(reservation -> reservation.getRoomId().equals(room.getRoomId()));
-        room.setStatus(hasActiveReservation ? "Booked" : "Available");
+
+        LocalDate today = LocalDate.now();
+        boolean isOccupied = getActiveReservations().stream()
+                .anyMatch(reservation -> reservation.getRoomId().equals(room.getRoomId())
+                        && reservation.isCurrentStay(today));
+        boolean hasUpcoming = getActiveReservations().stream()
+                .anyMatch(reservation -> reservation.getRoomId().equals(room.getRoomId())
+                        && reservation.isUpcoming(today));
+
+        if (isOccupied) {
+            room.setRoomStatus(RoomStatus.OCCUPIED);
+        } else if (hasUpcoming) {
+            room.setRoomStatus(RoomStatus.BOOKED);
+        } else {
+            room.setRoomStatus(RoomStatus.AVAILABLE);
+        }
     }
 
     private void addSeedRoom(Room room) {
         room.setRoomId(roomIdCounter.getAndIncrement());
+        room.setPrice(room.getRoomType().getPricePerNight());
         rooms.add(room);
     }
 
-    private void validateRoom(Room room) {
-        if (room.getRoomNumber() == null || room.getRoomNumber().isBlank()) {
-            throw new IllegalArgumentException("Room number is required.");
+    private void validateRoom(Room room, Long existingRoomId) throws InvalidRoomDataException {
+        String roomNumber = clean(room.getRoomNumber());
+        if (roomNumber.isEmpty()) {
+            throw new InvalidRoomDataException("Room number is required.");
         }
         if (room.getCapacity() <= 0) {
-            throw new IllegalArgumentException("Room capacity must be at least 1.");
+            throw new InvalidRoomDataException("Room capacity must be at least 1.");
         }
-        if (room.getPricePerNight() < 0) {
-            throw new IllegalArgumentException("Price per night cannot be negative.");
+        boolean duplicate = rooms.stream()
+                .anyMatch(existing -> existing.getRoomNumber().equalsIgnoreCase(roomNumber)
+                        && (existingRoomId == null || !existing.getRoomId().equals(existingRoomId)));
+        if (duplicate) {
+            throw new InvalidRoomDataException("Room number already exists.");
         }
-        if (room.getType() == null || room.getType().isBlank()) {
-            room.setType("Single");
-        }
-        if (room.getStatus() == null || room.getStatus().isBlank()) {
-            room.setStatus("Available");
-        }
-        if (!ROOM_STATUSES.contains(room.getStatus())) {
-            throw new IllegalArgumentException("Room status must be Available, Booked, Occupied, Cleaning, or Maintenance.");
+
+        try {
+            RoomType roomType = RoomType.fromDisplayName(room.getType());
+            RoomStatus roomStatus = RoomStatus.fromDisplayName(room.getStatus());
+            room.setRoomNumber(roomNumber);
+            room.setRoomType(roomType);
+            room.setRoomStatus(roomStatus);
+            room.setPrice(roomType.getPricePerNight());
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidRoomDataException(ex.getMessage());
         }
     }
 
@@ -347,7 +371,7 @@ public class BookingService {
     }
 
     private Customer findOrCreateGuest(String customerName) throws InvalidCustomerDataException {
-        String cleanedName = customerName.trim().replaceAll("\\s+", " ");
+        String cleanedName = clean(customerName);
         Customer existing = customers.stream()
                 .filter(c -> c.getFullName().equalsIgnoreCase(cleanedName))
                 .findFirst()

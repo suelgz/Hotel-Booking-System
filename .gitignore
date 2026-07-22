@@ -29,3 +29,6 @@ backend/target/
 *.iml
 .env
 dist/
+
+# Keep Maven Wrapper usable without requiring global Maven.
+!backend/.mvn/wrapper/maven-wrapper.jar

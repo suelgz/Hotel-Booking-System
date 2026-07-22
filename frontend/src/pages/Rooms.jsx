@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { createRoom, deleteRoom, getRooms, updateRoom } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import Modal from "../components/Modal";
 import "./Rooms.css";
 
 const ROOM_TYPES = ["Single", "Double", "Suite"];
+const ROOM_PRICES = { Single: 100, Double: 120, Suite: 300 };
 const STATUSES = ["Available", "Booked", "Occupied", "Cleaning", "Maintenance"];
 
 function RoomForm({ initial = {}, onSubmit, onCancel, saving, error }) {
@@ -12,11 +13,18 @@ function RoomForm({ initial = {}, onSubmit, onCancel, saving, error }) {
     roomNumber: initial.roomNumber || "",
     type: initial.type || "Single",
     capacity: initial.capacity || "",
-    pricePerNight: initial.pricePerNight || "",
+    pricePerNight: initial.pricePerNight || ROOM_PRICES[initial.type || "Single"],
     status: initial.status || "Available",
   });
 
-  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const set = (key, value) => {
+    setForm((current) => {
+      if (key === "type") {
+        return { ...current, type: value, pricePerNight: ROOM_PRICES[value] };
+      }
+      return { ...current, [key]: value };
+    });
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -25,7 +33,7 @@ function RoomForm({ initial = {}, onSubmit, onCancel, saving, error }) {
       ...form,
       roomNumber: form.roomNumber.trim(),
       capacity: Number(form.capacity),
-      pricePerNight: Number(form.pricePerNight),
+      pricePerNight: ROOM_PRICES[form.type] || Number(form.pricePerNight),
     });
   };
 
@@ -64,6 +72,7 @@ function RoomForm({ initial = {}, onSubmit, onCancel, saving, error }) {
               value={form.pricePerNight}
               onChange={(e) => set("pricePerNight", e.target.value)}
               placeholder="149"
+              readOnly
             />
           </div>
         </div>
@@ -277,3 +286,5 @@ export default function Rooms() {
     </div>
   );
 }
+
+

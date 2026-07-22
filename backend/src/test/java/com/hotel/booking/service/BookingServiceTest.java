@@ -1,6 +1,7 @@
 package com.hotel.booking.service;
 
 import com.hotel.booking.exception.InvalidReservationDataException;
+import com.hotel.booking.exception.InvalidRoomDataException;
 import com.hotel.booking.exception.RoomNotAvailableException;
 import com.hotel.booking.model.Reservation;
 import com.hotel.booking.model.Room;
@@ -10,7 +11,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BookingServiceTest {
 
@@ -101,6 +104,44 @@ class BookingServiceTest {
     }
 
     @Test
+    void futureReservationIsBookedButDoesNotCountAsCurrentOccupancy() throws Exception {
+        BookingService service = newService(new AuditLogService());
+        service.createReservation(
+                "Emily Carter",
+                "101",
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(3)
+        );
+
+        Map<String, Object> summary = service.getDashboardSummary();
+
+        assertEquals(1L, summary.get("bookedRooms"));
+        assertEquals(0L, summary.get("occupiedRooms"));
+        assertEquals(0, summary.get("occupancyRate"));
+    }
+
+    @Test
+    void currentStayCountsAsOccupied() throws Exception {
+        BookingService service = newService(new AuditLogService());
+        service.createReservation(
+                "Emily Carter",
+                "101",
+                LocalDate.now(),
+                LocalDate.now().plusDays(2)
+        );
+
+        Map<String, Object> summary = service.getDashboardSummary();
+        Room room = service.getAllRooms().stream()
+                .filter(candidate -> candidate.getRoomNumber().equals("101"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals("Occupied", room.getStatus());
+        assertEquals(1L, summary.get("occupiedRooms"));
+        assertEquals(20, summary.get("occupancyRate"));
+    }
+
+    @Test
     void dashboardSummaryReturnsExpectedCountsAndRevenue() throws Exception {
         BookingService service = newService(new AuditLogService());
         service.createReservation(
@@ -116,6 +157,34 @@ class BookingServiceTest {
         assertEquals(1, summary.get("activeReservations"));
         assertEquals(1L, summary.get("bookedRooms"));
         assertEquals(200.0, (double) summary.get("estimatedRevenue"));
+    }
+
+    @Test
+    void fixedRoomPricingComesFromRoomType() throws Exception {
+        BookingService service = newService(new AuditLogService());
+        Room room = new Room();
+        room.setRoomNumber("301");
+        room.setType("Double");
+        room.setCapacity(3);
+        room.setPricePerNight(999.0);
+        room.setStatus("Available");
+
+        Room created = service.addRoom(room);
+
+        assertEquals(120.0, created.getPricePerNight());
+    }
+
+    @Test
+    void rejectsDuplicateRoomNumbers() throws Exception {
+        BookingService service = newService(new AuditLogService());
+        Room room = new Room();
+        room.setRoomNumber("101");
+        room.setType("Single");
+        room.setCapacity(2);
+        room.setStatus("Available");
+
+        InvalidRoomDataException error = assertThrows(InvalidRoomDataException.class, () -> service.addRoom(room));
+        assertEquals("Room number already exists.", error.getMessage());
     }
 
     @Test

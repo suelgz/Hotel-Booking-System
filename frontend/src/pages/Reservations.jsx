@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   cancelReservation,
   createReservation,
+  getAvailability,
   getCustomers,
   getReservations,
   getRooms,
@@ -13,17 +14,63 @@ import "./Reservations.css";
 const STATUSES = ["Active", "Completed", "Cancelled"];
 
 function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }) {
-  const availableRooms = rooms.filter(
-    (room) => room.status !== "Maintenance" && room.status !== "Cleaning"
+  const operationalRooms = useMemo(
+    () => rooms.filter((room) => room.status !== "Maintenance" && room.status !== "Cleaning"),
+    [rooms]
   );
   const [form, setForm] = useState({
     customerName: "",
-    roomNumber: availableRooms[0]?.roomNumber || "",
+    roomNumber: operationalRooms[0]?.roomNumber || "",
     checkInDate: "",
     checkOutDate: "",
   });
+  const [dateRooms, setDateRooms] = useState([]);
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [availabilityKey, setAvailabilityKey] = useState("");
 
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const hasStayDates = Boolean(form.checkInDate && form.checkOutDate);
+  const dateRangeError =
+    hasStayDates && new Date(form.checkOutDate) <= new Date(form.checkInDate)
+      ? "Check-out must be after check-in."
+      : "";
+  const canCheckAvailability = hasStayDates && !dateRangeError;
+  const stayKey = `${form.checkInDate}|${form.checkOutDate}`;
+  const availabilityPending = canCheckAvailability && availabilityKey !== stayKey;
+  const selectableRooms = hasStayDates
+    ? canCheckAvailability && !availabilityPending ? dateRooms : []
+    : operationalRooms;
+  const selectedRoomNumber = selectableRooms.some((room) => room.roomNumber === form.roomNumber)
+    ? form.roomNumber
+    : selectableRooms[0]?.roomNumber || "";
+  const visibleError = error || dateRangeError || (!availabilityPending && canCheckAvailability ? availabilityError : "");
+
+  useEffect(() => {
+    if (!canCheckAvailability) return undefined;
+
+    let ignore = false;
+    async function loadAvailableRooms() {
+      try {
+        const result = await getAvailability(form.checkInDate, form.checkOutDate);
+        if (!ignore) {
+          setDateRooms(result.availableRooms || []);
+          setAvailabilityError("");
+          setAvailabilityKey(stayKey);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setDateRooms([]);
+          setAvailabilityError(err.message);
+          setAvailabilityKey(stayKey);
+        }
+      }
+    }
+
+    loadAvailableRooms();
+    return () => {
+      ignore = true;
+    };
+  }, [canCheckAvailability, form.checkInDate, form.checkOutDate, stayKey]);
 
   const nights =
     form.checkInDate && form.checkOutDate
@@ -36,14 +83,15 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }
         )
       : 0;
 
-  const selectedRoom = rooms.find((room) => room.roomNumber === form.roomNumber);
+  const selectedRoom = selectableRooms.find((room) => room.roomNumber === selectedRoomNumber);
   const estimatedTotal = selectedRoom ? nights * selectedRoom.pricePerNight : 0;
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (saving) return;
+    if (saving || availabilityPending) return;
     onSubmit({
       ...form,
+      roomNumber: selectedRoomNumber,
       customerName: form.customerName.trim(),
     });
   };
@@ -51,7 +99,7 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }
   return (
     <form onSubmit={handleSubmit}>
       <div className="modal-body">
-        {error && <div className="form-error">{error}</div>}
+        {visibleError && <div className="form-error">{visibleError}</div>}
         <div className="form-group">
           <label>Guest Name</label>
           <input
@@ -69,12 +117,15 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }
         <div className="form-group">
           <label>Room</label>
           <select
-            value={form.roomNumber}
+            value={selectedRoomNumber}
             onChange={(e) => set("roomNumber", e.target.value)}
-            disabled={availableRooms.length === 0}
+            disabled={selectableRooms.length === 0 || availabilityPending}
           >
-            {availableRooms.length === 0 && <option value="">No operational rooms</option>}
-            {availableRooms.map((room) => (
+            {availabilityPending && <option value="">Checking rooms...</option>}
+            {!availabilityPending && selectableRooms.length === 0 && (
+              <option value="">No rooms available</option>
+            )}
+            {!availabilityPending && selectableRooms.map((room) => (
               <option key={room.roomId} value={room.roomNumber}>
                 #{room.roomNumber} - {room.type} - ${room.pricePerNight}/night
               </option>
@@ -91,7 +142,7 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }
             <input type="date" value={form.checkOutDate} onChange={(e) => set("checkOutDate", e.target.value)} />
           </div>
         </div>
-        {nights > 0 && (
+        {nights > 0 && selectedRoom && (
           <div className="reservation-estimate">
             <span>{nights} night{nights !== 1 ? "s" : ""}</span>
             <span className="estimate-total">Est. total: <strong>${estimatedTotal}</strong></span>
@@ -102,7 +153,11 @@ function ReservationForm({ rooms, customers, onSubmit, onCancel, saving, error }
         <button type="button" className="btn btn-outline" onClick={onCancel} disabled={saving}>
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary" disabled={saving || availableRooms.length === 0}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={saving || availabilityPending || selectableRooms.length === 0}
+        >
           {saving ? "Saving..." : "Create Reservation"}
         </button>
       </div>
