@@ -1,0 +1,104 @@
+.availability-panel {
+  padding: 20px;
+  margin-bottom: 22px;
+}
+
+.availability-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.availability-form .form-group {
+  min-width: 190px;
+}
+
+.availability-summary {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.availability-summary > div,
+.availability-room-card,
+.availability-empty {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.availability-summary > div {
+  padding: 14px 16px;
+}
+
+.summary-label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.availability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.availability-room-card {
+  padding: 16px;
+}
+
+.availability-room-top,
+.availability-room-meta,
+.availability-price {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.availability-room-top {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.room-number {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.availability-room-meta {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.availability-price {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  color: var(--text-secondary);
+}
+
+.availability-price strong {
+  color: var(--gold);
+}
+
+.availability-empty {
+  padding: 28px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 700px) {
+  .availability-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .availability-summary {
+    grid-template-columns: 1fr;
+  }
+}
