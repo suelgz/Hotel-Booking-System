@@ -1,4 +1,4 @@
-﻿# Hotel Booking Management System
+# Hotel Booking Management System
 
 A university-style full-stack hotel booking application with a Java 17 Spring Boot REST API and a React/Vite frontend. The project keeps the original object-oriented hotel concepts while adding clearer booking rules, validation, and a cleaner portfolio-ready structure.
 
@@ -122,6 +122,20 @@ VITE_API_BASE_URL=http://localhost:8080/api
 
 If `VITE_API_BASE_URL` is not set, the frontend uses `http://localhost:8080/api`.
 
+
+## Troubleshooting API Connection Errors
+
+If the frontend shows `Could not reach the hotel API`, the React app cannot reach the backend URL it was built with.
+
+For local development:
+- Start the backend first with `cd backend && .\mvnw.cmd spring-boot:run`.
+- Start the frontend with `cd frontend && npm run dev`.
+- Keep `VITE_API_BASE_URL=http://localhost:8080/api` in `frontend/.env` if you create one.
+
+For Vercel or another hosted frontend:
+- Set `VITE_API_BASE_URL` to the deployed backend URL, for example `https://your-render-service.onrender.com/api`.
+- Redeploy the frontend after changing this variable because Vite reads it at build time.
+- Check the backend directly at `/api/health`; it should return JSON with `"status":"ok"`.
 ## API Endpoint Summary
 
 ```text
