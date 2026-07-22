@@ -1,9 +1,19 @@
 package com.hotel.booking.controller;
 
+import com.hotel.booking.dto.RoomRequest;
+import com.hotel.booking.exception.InvalidRoomDataException;
 import com.hotel.booking.model.Room;
 import com.hotel.booking.service.BookingService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
@@ -24,13 +34,14 @@ public class RoomController {
     }
 
     @PostMapping
-    public ResponseEntity<Room> createRoom(@RequestBody Map<String, Object> body) {
-        return ResponseEntity.ok(bookingService.addRoom(toRoom(body)));
+    public ResponseEntity<Room> createRoom(@Valid @RequestBody RoomRequest request) throws InvalidRoomDataException {
+        return ResponseEntity.ok(bookingService.addRoom(toRoom(request)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateRoom(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        Room updated = bookingService.updateRoom(id, toRoom(body));
+    public ResponseEntity<?> updateRoom(@PathVariable Long id, @Valid @RequestBody RoomRequest request)
+            throws InvalidRoomDataException {
+        Room updated = bookingService.updateRoom(id, toRoom(request));
         if (updated == null) {
             return ResponseEntity.status(404).body(Map.of("error", "Room not found."));
         }
@@ -38,37 +49,22 @@ public class RoomController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteRoom(@PathVariable Long id) {
+    public ResponseEntity<?> deleteRoom(@PathVariable Long id) throws InvalidRoomDataException {
         if (!bookingService.deleteRoom(id)) {
             return ResponseEntity.status(404).body(Map.of("error", "Room not found."));
         }
         return ResponseEntity.noContent().build();
     }
 
-    private Room toRoom(Map<String, Object> body) {
+    private Room toRoom(RoomRequest request) {
         Room room = new Room();
-        room.setRoomNumber(readString(body, "roomNumber"));
-        room.setType(readString(body, "type"));
-        room.setCapacity(readInt(body, "capacity"));
-        room.setPrice(readDouble(body, "pricePerNight", "price"));
-        room.setStatus(readString(body, "status"));
+        room.setRoomNumber(request.roomNumber());
+        room.setType(request.type());
+        room.setCapacity(request.capacity());
+        if (request.pricePerNight() != null) {
+            room.setPrice(request.pricePerNight());
+        }
+        room.setStatus(request.status());
         return room;
-    }
-
-    private String readString(Map<String, Object> body, String key) {
-        Object value = body.get(key);
-        return value == null ? "" : value.toString().trim();
-    }
-
-    private int readInt(Map<String, Object> body, String key) {
-        Object value = body.get(key);
-        if (value instanceof Number number) return number.intValue();
-        return Integer.parseInt(value.toString());
-    }
-
-    private double readDouble(Map<String, Object> body, String preferredKey, String fallbackKey) {
-        Object value = body.getOrDefault(preferredKey, body.get(fallbackKey));
-        if (value instanceof Number number) return number.doubleValue();
-        return Double.parseDouble(value.toString());
     }
 }

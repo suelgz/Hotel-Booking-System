@@ -1,14 +1,18 @@
 # Hotel Booking Management System
 
-A full-stack hotel booking management system built as a student portfolio project. It demonstrates a React/Vite frontend, a Java 17 Spring Boot REST API, simple OOP models, and deployment to Vercel and Render.
+A university-style full-stack hotel booking application with a Java 17 Spring Boot REST API and a React/Vite frontend. The project keeps the original object-oriented hotel concepts while adding clearer booking rules, validation, and a cleaner portfolio-ready structure.
 
-## Live Demo
+## Technology Stack
 
- https://hotel-booking-system-mocha.vercel.app/
-
-The backend is hosted on Render's free plan. If it has been idle, the first request can take about 30-60 seconds while the service wakes up.
-
-## Tech Stack
+Backend:
+- Java 17
+- Spring Boot 3.2
+- Maven
+- Spring Web
+- Spring Validation
+- JUnit 5
+- Docker
+- In-memory data storage
 
 Frontend:
 - React
@@ -17,25 +21,22 @@ Frontend:
 - React Router
 - CSS
 
-Backend:
-- Java 17
-- Spring Boot
-- Maven
-- Docker
-- In-memory data storage
-
 Deployment:
 - Vercel for the frontend
-- Render for the backend API
+- Render or another Docker-capable host for the backend API
 
-## Features
+## Current Features
 
-- Dashboard with room, customer, and reservation summaries
+- Dashboard with room counts, current occupancy, active reservations, estimated revenue, arrivals, departures, and recent activity
 - Room listing, creation, update, and deletion
+- Fixed backend-approved room pricing by room type
+- Duplicate room number and room data validation
 - Customer listing, creation, update, and deletion
-- Reservation creation with date validation
-- Reservation cancellation with room status updates
-- Clear loading and error states for API requests
+- Reservation creation with check-in/check-out validation
+- Date-based room availability checks
+- Overlap detection that allows back-to-back reservations
+- Reservation cancellation with room status refresh
+- Consistent JSON error responses
 - Simple health endpoint at `GET /api/health`
 - SPA routing support for Vercel refreshes
 
@@ -43,21 +44,28 @@ Deployment:
 
 ```text
 Hotel-Booking-System/
-├── backend/
-│   ├── Dockerfile
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/com/hotel/booking/
-│       └── test/java/com/hotel/booking/
-├── frontend/
-│   ├── package.json
-│   ├── vercel.json
-│   └── src/
-│       ├── components/
-│       ├── pages/
-│       ├── services/
-│       └── styles/
-└── README.md
+|-- backend/
+|   |-- Dockerfile
+|   |-- pom.xml
+|   |-- mvnw
+|   |-- mvnw.cmd
+|   `-- src/
+|       |-- main/java/com/hotel/booking/
+|       |   |-- controller/
+|       |   |-- dto/
+|       |   |-- exception/
+|       |   |-- model/
+|       |   `-- service/
+|       `-- test/java/com/hotel/booking/
+|-- frontend/
+|   |-- package.json
+|   |-- vercel.json
+|   `-- src/
+|       |-- components/
+|       |-- pages/
+|       |-- services/
+|       `-- styles/
+`-- README.md
 ```
 
 ## Local Setup
@@ -66,10 +74,17 @@ Backend:
 
 ```bash
 cd backend
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
-The API runs at:
+On Windows PowerShell:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+The backend runs at:
 
 ```text
 http://localhost:8080/api
@@ -89,35 +104,46 @@ The frontend runs at:
 http://localhost:5173
 ```
 
-The frontend uses this API base URL:
+## Environment Variables
 
-```js
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
-```
-
-For the live Vercel deployment, set:
+Backend:
 
 ```text
-VITE_API_BASE_URL=https://hotel-booking-system-k8x2.onrender.com/api
+PORT=8080
 ```
 
-## Deployment Notes
+`PORT` is optional locally. Render can inject it when deployed.
 
-Vercel:
-- Root directory: `frontend`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Environment variable: `VITE_API_BASE_URL`
+Frontend:
 
-Render:
-- Docker build context: `backend`
-- Dockerfile path: `backend/Dockerfile`
-- The backend uses `server.port=${PORT:8080}` so Render can inject the correct port.
+```text
+VITE_API_BASE_URL=http://localhost:8080/api
+```
 
-## API Examples
+If `VITE_API_BASE_URL` is not set, the frontend uses `http://localhost:8080/api`.
+
+
+## Troubleshooting API Connection Errors
+
+If the frontend shows `Could not reach the hotel API`, the React app cannot reach the backend URL it was built with.
+
+For local development:
+- Start the backend first with `cd backend && .\mvnw.cmd spring-boot:run`.
+- Start the frontend with `cd frontend && npm run dev`.
+- Keep `VITE_API_BASE_URL=http://localhost:8080/api` in `frontend/.env` if you create one.
+
+For Vercel or another hosted frontend:
+- Set `VITE_API_BASE_URL` to the deployed backend URL, for example `https://your-render-service.onrender.com/api`.
+- Redeploy the frontend after changing this variable because Vite reads it at build time.
+- Check the backend directly at `/api/health`; it should return JSON with `"status":"ok"`.
+## API Endpoint Summary
 
 ```text
 GET    /api/health
+
+GET    /api/dashboard/summary
+GET    /api/audit-logs
+
 GET    /api/rooms
 POST   /api/rooms
 PUT    /api/rooms/{id}
@@ -128,22 +154,88 @@ POST   /api/customers
 PUT    /api/customers/{id}
 DELETE /api/customers/{id}
 
+GET    /api/availability?checkInDate=YYYY-MM-DD&checkOutDate=YYYY-MM-DD
+
 GET    /api/reservations
 POST   /api/reservations
 PATCH  /api/reservations/{id}/cancel
 ```
 
+Reservation creation body:
+
+```json
+{
+  "customerName": "Emily Carter",
+  "roomNumber": "101",
+  "checkInDate": "2026-08-01",
+  "checkOutDate": "2026-08-03"
+}
+```
+
+Room creation body:
+
+```json
+{
+  "roomNumber": "301",
+  "type": "Double",
+  "capacity": 3,
+  "status": "Available"
+}
+```
+
+Room prices are assigned by the backend from the room type:
+
+```text
+Single: 100
+Double: 120
+Suite: 300
+```
+
+## Testing Commands
+
+Frontend:
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+Backend:
+
+```bash
+cd backend
+./mvnw test
+./mvnw package
+```
+
+On Windows PowerShell, use `./mvnw.cmd` instead of `./mvnw`.
+
+## Deployment Information
+
+Frontend deployment on Vercel:
+- Root directory: `frontend`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Required environment variable: `VITE_API_BASE_URL`
+
+Backend deployment with Docker:
+- Build context: `backend`
+- Dockerfile: `backend/Dockerfile`
+- The app reads `server.port=${PORT:8080}` from `application.properties`
+
 ## Known Limitations
 
-- Data is currently stored in memory.
-- Data may reset when the Render service restarts.
-- There is no authentication yet.
-- There is no persistent database yet.
+- Data is stored in memory and resets when the backend restarts.
+- There is no authentication or role-based access.
+- There is no database persistence.
+- Payments are represented by simple OOP classes but are not part of the active API workflow.
+- The dashboard is operational and simple; it is not a reporting or analytics system.
 
 ## Future Improvements
 
-- PostgreSQL database
-- Authentication
-- Admin and customer roles
-- Better reservation calendar
-- Payment status management
+- Add a small persistent database such as PostgreSQL or H2 for stored reservations.
+- Add login for staff users.
+- Add a clearer room calendar view.
+- Add reservation editing after creation.
+- Add basic payment status tracking if payment workflow becomes part of the app.

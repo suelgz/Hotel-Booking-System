@@ -1,10 +1,19 @@
 package com.hotel.booking.controller;
 
+import com.hotel.booking.dto.CustomerRequest;
 import com.hotel.booking.exception.InvalidCustomerDataException;
 import com.hotel.booking.model.Customer;
 import com.hotel.booking.service.BookingService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
@@ -25,28 +34,28 @@ public class CustomerController {
     }
 
     @PostMapping
-    public ResponseEntity<Customer> createCustomer(@RequestBody Map<String, String> body)
+    public ResponseEntity<Customer> createCustomer(@Valid @RequestBody CustomerRequest request)
             throws InvalidCustomerDataException {
-        String[] nameParts = splitFullName(body.get("fullName"));
+        String[] nameParts = splitFullName(request.fullName());
         Customer created = bookingService.addCustomer(
                 nameParts[0],
                 nameParts[1],
-                body.get("email"),
-                body.get("phone")
+                request.email(),
+                request.phone()
         );
         return ResponseEntity.ok(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateCustomer(@PathVariable Long id, @RequestBody Map<String, String> body)
+    public ResponseEntity<?> updateCustomer(@PathVariable Long id, @Valid @RequestBody CustomerRequest request)
             throws InvalidCustomerDataException {
-        String[] nameParts = splitFullName(body.get("fullName"));
+        String[] nameParts = splitFullName(request.fullName());
         Customer updated = bookingService.updateCustomer(
                 id,
                 nameParts[0],
                 nameParts[1],
-                body.get("email"),
-                body.get("phone")
+                request.email(),
+                request.phone()
         );
         if (updated == null) {
             return ResponseEntity.status(404).body(Map.of("error", "Customer not found."));

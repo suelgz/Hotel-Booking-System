@@ -15,23 +15,10 @@ public class CashPayment extends Payment {
 
     @Override
     public boolean processPayment() {
-        try {
-            if (getAmount() <= 0) {
-                throw new IllegalArgumentException("Amount isn't valid");
-            }
-            if (cashReceived <= 0) {
-                throw new IllegalArgumentException("Cash received isn't valid");
-            }
-            if (cashReceived < getAmount()) {
-                throw new IllegalArgumentException("Not enough cash");
-            }
-            change = cashReceived - getAmount();
-            System.out.println("Cash payment successful");
-            System.out.println("Change: " + change);
-            return true;
-        } catch (IllegalArgumentException e) {
-            System.out.println("Cash payment failed: " + e.getMessage());
+        if (getAmount() <= 0 || cashReceived <= 0 || cashReceived < getAmount()) {
             return false;
         }
+        change = cashReceived - getAmount();
+        return true;
     }
 }

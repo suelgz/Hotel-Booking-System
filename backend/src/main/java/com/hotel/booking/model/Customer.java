@@ -10,8 +10,6 @@ public class Customer {
     private String email;
     private String phone;
     private ArrayList<Reservation> reservations;
-
-    // API için eklendi
     private Long customerId;
 
     public Customer() {
@@ -61,13 +59,14 @@ public class Customer {
     @JsonIgnore
     public ArrayList<Reservation> getReservations() { return reservations; }
 
-    // --- API için eklendi ---
     public Long getCustomerId() { return customerId; }
     public void setCustomerId(Long customerId) { this.customerId = customerId; }
 
-    // frontend "fullName" bekliyor
-    public String getFullName() { return (name + " " + surname).trim(); }
+    public String getFullName() {
+        String first = name == null ? "" : name;
+        String last = surname == null ? "" : surname;
+        return (first + " " + last).trim();
+    }
 
-    // frontend Customers tablosunda gösteriyor
     public int getTotalReservations() { return reservations.size(); }
 }

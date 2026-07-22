@@ -29,7 +29,6 @@ public abstract class Payment {
 
     public void completePayment() {
         this.isCompleted = true;
-        System.out.println("Payment " + paymentId + " completed!");
     }
 
     @Override
