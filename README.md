@@ -1,4 +1,4 @@
-# Hotel Booking Management System
+# Hotel Operations Console
 
 A university-style full-stack hotel booking application with a Java 17 Spring Boot REST API and a React/Vite frontend. The project keeps the original object-oriented hotel concepts while adding clearer booking rules, validation, and a cleaner portfolio-ready structure.
 
@@ -11,7 +11,6 @@ Backend:
 - Spring Web
 - Spring Validation
 - JUnit 5
-- Docker
 - In-memory data storage
 
 Frontend:
@@ -231,11 +230,3 @@ Backend deployment with Docker:
 - There is no database persistence.
 - Payments are represented by simple OOP classes but are not part of the active API workflow.
 - The dashboard is operational and simple; it is not a reporting or analytics system.
-
-## Future Improvements
-
-- Add a small persistent database such as PostgreSQL or H2 for stored reservations.
-- Add login for staff users.
-- Add a clearer room calendar view.
-- Add reservation editing after creation.
-- Add basic payment status tracking if payment workflow becomes part of the app.
