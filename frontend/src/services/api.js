@@ -1,17 +1,32 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const BASE_URL = normalizeBaseUrl(rawBaseUrl || "http://localhost:8080/api");
+const RETRY_DELAYS_MS = [1500, 3000, 6000];
 
 async function request(path, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  const maxAttempts = method === "GET" ? RETRY_DELAYS_MS.length + 1 : 1;
   let response;
+  let networkError;
 
-  try {
-    response = await fetch(`${BASE_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-      ...options,
-    });
-  } catch {
-    throw new Error(
-      "Could not reach the hotel API. If this is the live demo, the Render backend may need 30-60 seconds to wake up."
-    );
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      response = await fetch(`${BASE_URL}${path}`, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options,
+      });
+      networkError = null;
+      break;
+    } catch (error) {
+      networkError = error;
+
+      if (attempt < maxAttempts - 1) {
+        await delay(RETRY_DELAYS_MS[attempt]);
+      }
+    }
+  }
+
+  if (networkError) {
+    throw new Error(getConnectionErrorMessage());
   }
 
   if (response.status === 204) return { success: true };
@@ -32,6 +47,28 @@ function tryParseJson(text) {
   } catch {
     return {};
   }
+}
+
+function normalizeBaseUrl(url) {
+  return url.replace(/\/+$/, "");
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function getConnectionErrorMessage() {
+  if (import.meta.env.PROD && !rawBaseUrl) {
+    return "The live frontend is missing VITE_API_BASE_URL. Set it in Vercel to your Render backend URL, for example https://your-render-service.onrender.com/api, then redeploy.";
+  }
+
+  if (import.meta.env.PROD && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api$/i.test(BASE_URL)) {
+    return "The live frontend is pointed at localhost. Update VITE_API_BASE_URL in Vercel to your Render backend URL, then redeploy the frontend.";
+  }
+
+  return "Could not reach the hotel API. If this is the live demo, the Render backend may need 30-60 seconds to wake up. Try again shortly, or check the backend /api/health endpoint.";
 }
 
 export async function getRooms() {
