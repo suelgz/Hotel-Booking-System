@@ -2,19 +2,42 @@ package com.hotel.booking.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hotel.booking.exception.InvalidCustomerDataException;
-import java.util.ArrayList;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "customers")
 public class Customer {
+    @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false)
     private String surname;
+
+    @Column(nullable = false)
     private String email;
+
+    @Column(nullable = false)
     private String phone;
-    private ArrayList<Reservation> reservations;
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = false)
+    private List<Reservation> reservations = new ArrayList<>();
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long customerId;
 
-    public Customer() {
-        this.reservations = new ArrayList<>();
-    }
+    public Customer() {}
 
     public Customer(String name, String surname, String email, String phone)
             throws InvalidCustomerDataException {
@@ -39,7 +62,6 @@ public class Customer {
         this.surname = surname;
         this.email = email;
         this.phone = phone;
-        this.reservations = new ArrayList<>();
     }
 
     public String getName() { return name; }
@@ -57,7 +79,7 @@ public class Customer {
     public void addReservation(Reservation r) { reservations.add(r); }
     public void removeReservation(Reservation r) { reservations.remove(r); }
     @JsonIgnore
-    public ArrayList<Reservation> getReservations() { return reservations; }
+    public List<Reservation> getReservations() { return reservations; }
 
     public Long getCustomerId() { return customerId; }
     public void setCustomerId(Long customerId) { this.customerId = customerId; }
