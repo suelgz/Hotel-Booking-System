@@ -10,9 +10,13 @@ import com.hotel.booking.model.ReservationStatus;
 import com.hotel.booking.model.Room;
 import com.hotel.booking.model.RoomStatus;
 import com.hotel.booking.model.RoomType;
-import com.hotel.booking.model.StandardRoom;
-import com.hotel.booking.model.SuiteRoom;
+import com.hotel.booking.repository.CustomerRepository;
+import com.hotel.booking.repository.ReservationRepository;
+import com.hotel.booking.repository.RoomRepository;
+import jakarta.annotation.PostConstruct;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -20,48 +24,58 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class BookingService {
 
-    private final List<Room> rooms = new ArrayList<>();
-    private final List<Customer> customers = new ArrayList<>();
-    private final List<Reservation> reservations = new ArrayList<>();
+    private final RoomRepository roomRepository;
+    private final CustomerRepository customerRepository;
+    private final ReservationRepository reservationRepository;
     private final AuditLogService auditLogService;
 
-    private final AtomicLong roomIdCounter = new AtomicLong(1);
-    private final AtomicLong customerIdCounter = new AtomicLong(1);
-    private int reservationCounter = 1;
-
-    public BookingService(AuditLogService auditLogService) {
+    public BookingService(RoomRepository roomRepository,
+                          CustomerRepository customerRepository,
+                          ReservationRepository reservationRepository,
+                          AuditLogService auditLogService) {
+        this.roomRepository = roomRepository;
+        this.customerRepository = customerRepository;
+        this.reservationRepository = reservationRepository;
         this.auditLogService = auditLogService;
-
-        addSeedRoom(new StandardRoom("101", 2, RoomType.SINGLE.getPricePerNight(), true));
-        addSeedRoom(new StandardRoom("102", 2, RoomType.SINGLE.getPricePerNight(), true));
-        addSeedRoom(new StandardRoom("103", 4, RoomType.DOUBLE.getPricePerNight(), true));
-        addSeedRoom(new SuiteRoom("201", 2, RoomType.SUITE.getPricePerNight(), true, 50, "Deluxe", true));
-        addSeedRoom(new SuiteRoom("202", 6, RoomType.SUITE.getPricePerNight(), true, 75, "Presidential", true));
     }
 
+    @PostConstruct
+    public void seedRooms() {
+        if (roomRepository.count() > 0) {
+            return;
+        }
+
+        roomRepository.save(createSeedRoom("101", 2, RoomType.SINGLE));
+        roomRepository.save(createSeedRoom("102", 2, RoomType.SINGLE));
+        roomRepository.save(createSeedRoom("103", 4, RoomType.DOUBLE));
+        roomRepository.save(createSeedRoom("201", 2, RoomType.SUITE));
+        roomRepository.save(createSeedRoom("202", 6, RoomType.SUITE));
+    }
+
+    @Transactional
     public List<Room> getAllRooms() {
         refreshAllRoomStatuses();
-        return new ArrayList<>(rooms);
+        return new ArrayList<>(roomRepository.findAll(Sort.by("roomNumber")));
     }
 
+    @Transactional
     public Room addRoom(Room newRoom) throws InvalidRoomDataException {
         validateRoom(newRoom, null);
-        newRoom.setRoomId(roomIdCounter.getAndIncrement());
-        rooms.add(newRoom);
-        refreshRoomStatus(newRoom);
+        Room saved = roomRepository.save(newRoom);
+        refreshRoomStatus(saved);
         auditLogService.record(
                 "ROOM_CREATED",
-                "Room " + newRoom.getRoomNumber() + " created",
+                "Room " + saved.getRoomNumber() + " created",
                 "room"
         );
-        return newRoom;
+        return saved;
     }
 
+    @Transactional
     public Room updateRoom(Long roomId, Room updated) throws InvalidRoomDataException {
         Room room = findRoomById(roomId);
         if (room == null) return null;
@@ -81,13 +95,14 @@ public class BookingService {
         return room;
     }
 
+    @Transactional
     public boolean deleteRoom(Long roomId) throws InvalidRoomDataException {
         Room room = findRoomById(roomId);
         if (room == null) return false;
         if (hasAnyActiveReservation(room)) {
             throw new InvalidRoomDataException("Room has active or upcoming reservations and cannot be deleted.");
         }
-        rooms.remove(room);
+        roomRepository.delete(room);
         auditLogService.record(
                 "ROOM_DELETED",
                 "Room " + room.getRoomNumber() + " deleted",
@@ -96,10 +111,12 @@ public class BookingService {
         return true;
     }
 
+    @Transactional(readOnly = true)
     public List<Customer> getAllCustomers() {
-        return new ArrayList<>(customers);
+        return new ArrayList<>(customerRepository.findAll(Sort.by("customerId")));
     }
 
+    @Transactional
     public Customer addCustomer(String name, String surname, String email, String phone)
             throws InvalidCustomerDataException {
         String cleanedName = clean(name);
@@ -109,16 +126,16 @@ public class BookingService {
         validateCustomer(cleanedName, cleanedSurname, cleanedEmail, cleanedPhone);
 
         Customer customer = new Customer(cleanedName, cleanedSurname, cleanedEmail, cleanedPhone);
-        customer.setCustomerId(customerIdCounter.getAndIncrement());
-        customers.add(customer);
+        Customer saved = customerRepository.save(customer);
         auditLogService.record(
                 "CUSTOMER_CREATED",
-                "Customer " + customer.getFullName() + " created",
+                "Customer " + saved.getFullName() + " created",
                 "customer"
         );
-        return customer;
+        return saved;
     }
 
+    @Transactional
     public Customer updateCustomer(Long customerId, String name, String surname, String email, String phone)
             throws InvalidCustomerDataException {
         Customer customer = findCustomerById(customerId);
@@ -142,10 +159,11 @@ public class BookingService {
         return customer;
     }
 
+    @Transactional
     public boolean deleteCustomer(Long customerId) {
         Customer customer = findCustomerById(customerId);
         if (customer == null) return false;
-        customers.remove(customer);
+        customerRepository.delete(customer);
         auditLogService.record(
                 "CUSTOMER_DELETED",
                 "Customer " + customer.getFullName() + " deleted",
@@ -154,17 +172,17 @@ public class BookingService {
         return true;
     }
 
+    @Transactional(readOnly = true)
     public List<Reservation> getAllReservations() {
-        return new ArrayList<>(reservations);
+        return new ArrayList<>(reservationRepository.findAll(Sort.by("reservationId")));
     }
 
+    @Transactional
     public Reservation createReservation(String customerName, String roomNumber, LocalDate checkIn, LocalDate checkOut)
             throws RoomNotAvailableException, InvalidCustomerDataException, InvalidReservationDataException {
         validateReservation(customerName, roomNumber, checkIn, checkOut);
 
-        Room room = rooms.stream()
-                .filter(r -> r.getRoomNumber().equals(clean(roomNumber)))
-                .findFirst()
+        Room room = roomRepository.findByRoomNumberIgnoreCase(clean(roomNumber))
                 .orElseThrow(() -> new RoomNotAvailableException("Room not found: " + roomNumber));
 
         if (room.getRoomStatus().blocksBooking()) {
@@ -177,25 +195,23 @@ public class BookingService {
         }
 
         Customer customer = findOrCreateGuest(customerName);
-        String resId = String.format("RES-%03d", reservationCounter++);
+        String resId = nextReservationId();
         Reservation reservation = new Reservation(resId, customer, room, checkIn, checkOut);
 
         reservation.book();
-        reservations.add(reservation);
+        Reservation saved = reservationRepository.save(reservation);
         refreshRoomStatus(room);
         auditLogService.record(
                 "RESERVATION_CREATED",
                 "Reservation " + resId + " created for Room " + room.getRoomNumber(),
                 "reservation"
         );
-        return reservation;
+        return saved;
     }
 
+    @Transactional
     public boolean cancelReservation(String reservationId) {
-        Reservation reservation = reservations.stream()
-                .filter(r -> r.getReservationId().equals(reservationId))
-                .findFirst()
-                .orElse(null);
+        Reservation reservation = reservationRepository.findById(reservationId).orElse(null);
         if (reservation == null) return false;
 
         reservation.cancel();
@@ -208,11 +224,12 @@ public class BookingService {
         return true;
     }
 
+    @Transactional
     public Map<String, Object> getAvailability(LocalDate checkIn, LocalDate checkOut)
             throws InvalidReservationDataException {
         validateStayDates(checkIn, checkOut);
         refreshAllRoomStatuses();
-        List<Room> availableRooms = rooms.stream()
+        List<Room> availableRooms = roomRepository.findAll(Sort.by("roomNumber")).stream()
                 .filter(room -> isRoomAvailableForDates(room, checkIn, checkOut))
                 .toList();
 
@@ -224,15 +241,18 @@ public class BookingService {
         );
     }
 
+    @Transactional
     public Map<String, Object> getDashboardSummary() {
         refreshAllRoomStatuses();
         LocalDate today = LocalDate.now();
+        List<Room> rooms = roomRepository.findAll();
+        List<Reservation> reservations = reservationRepository.findAll();
         long totalRooms = rooms.size();
         long availableRooms = rooms.stream().filter(room -> room.getRoomStatus() == RoomStatus.AVAILABLE).count();
         long bookedRooms = rooms.stream().filter(room -> room.getRoomStatus() == RoomStatus.BOOKED).count();
         long occupiedRooms = rooms.stream().filter(room -> room.getRoomStatus() == RoomStatus.OCCUPIED).count();
         long maintenanceRooms = rooms.stream().filter(room -> room.getRoomStatus() == RoomStatus.MAINTENANCE).count();
-        List<Reservation> activeReservations = getActiveReservations();
+        List<Reservation> activeReservations = getActiveReservations(reservations);
         long cancelledReservations = reservations.stream()
                 .filter(Reservation::isCancelled)
                 .count();
@@ -282,13 +302,17 @@ public class BookingService {
     }
 
     private List<Reservation> getActiveReservations() {
+        return getActiveReservations(reservationRepository.findAll());
+    }
+
+    private List<Reservation> getActiveReservations(List<Reservation> reservations) {
         return reservations.stream()
                 .filter(reservation -> reservation.getReservationStatus() == ReservationStatus.ACTIVE)
                 .toList();
     }
 
     private void refreshAllRoomStatuses() {
-        rooms.forEach(this::refreshRoomStatus);
+        roomRepository.findAll().forEach(this::refreshRoomStatus);
     }
 
     private void refreshRoomStatus(Room room) {
@@ -311,12 +335,14 @@ public class BookingService {
         } else {
             room.setRoomStatus(RoomStatus.AVAILABLE);
         }
+        roomRepository.save(room);
     }
 
-    private void addSeedRoom(Room room) {
-        room.setRoomId(roomIdCounter.getAndIncrement());
-        room.setPrice(room.getRoomType().getPricePerNight());
-        rooms.add(room);
+    private Room createSeedRoom(String roomNumber, int capacity, RoomType roomType) {
+        Room room = new Room(roomNumber, capacity, roomType.getPricePerNight(), true);
+        room.setRoomType(roomType);
+        room.setRoomStatus(RoomStatus.AVAILABLE);
+        return room;
     }
 
     private void validateRoom(Room room, Long existingRoomId) throws InvalidRoomDataException {
@@ -327,9 +353,9 @@ public class BookingService {
         if (room.getCapacity() <= 0) {
             throw new InvalidRoomDataException("Room capacity must be at least 1.");
         }
-        boolean duplicate = rooms.stream()
-                .anyMatch(existing -> existing.getRoomNumber().equalsIgnoreCase(roomNumber)
-                        && (existingRoomId == null || !existing.getRoomId().equals(existingRoomId)));
+        boolean duplicate = roomRepository.findByRoomNumberIgnoreCase(roomNumber)
+                .filter(existing -> existingRoomId == null || !existing.getRoomId().equals(existingRoomId))
+                .isPresent();
         if (duplicate) {
             throw new InvalidRoomDataException("Room number already exists.");
         }
@@ -372,7 +398,7 @@ public class BookingService {
 
     private Customer findOrCreateGuest(String customerName) throws InvalidCustomerDataException {
         String cleanedName = clean(customerName);
-        Customer existing = customers.stream()
+        Customer existing = customerRepository.findAll().stream()
                 .filter(c -> c.getFullName().equalsIgnoreCase(cleanedName))
                 .findFirst()
                 .orElse(null);
@@ -382,22 +408,21 @@ public class BookingService {
         String first = parts[0];
         String last = parts.length > 1 ? parts[1] : "-";
         Customer customer = new Customer(first, last, "guest@hotel.com", "0000000000");
-        customer.setCustomerId(customerIdCounter.getAndIncrement());
-        customers.add(customer);
+        Customer saved = customerRepository.save(customer);
         auditLogService.record(
                 "CUSTOMER_CREATED",
-                "Customer " + customer.getFullName() + " created",
+                "Customer " + saved.getFullName() + " created",
                 "customer"
         );
-        return customer;
+        return saved;
     }
 
     private Room findRoomById(Long id) {
-        return rooms.stream().filter(r -> r.getRoomId().equals(id)).findFirst().orElse(null);
+        return roomRepository.findById(id).orElse(null);
     }
 
     private Customer findCustomerById(Long id) {
-        return customers.stream().filter(c -> c.getCustomerId().equals(id)).findFirst().orElse(null);
+        return customerRepository.findById(id).orElse(null);
     }
 
     private void validateCustomer(String name, String surname, String email, String phone)
@@ -407,6 +432,21 @@ public class BookingService {
         if (email.isEmpty()) throw new InvalidCustomerDataException("Email can't be null or empty");
         if (!email.contains("@")) throw new InvalidCustomerDataException("Invalid email format");
         if (phone.isEmpty()) throw new InvalidCustomerDataException("Phone can't be null or empty");
+    }
+
+    private String nextReservationId() {
+        int next = reservationRepository.findAll().stream()
+                .map(Reservation::getReservationId)
+                .filter(id -> id != null && id.matches("RES-\\d+"))
+                .mapToInt(id -> Integer.parseInt(id.substring(4)))
+                .max()
+                .orElse(0) + 1;
+
+        String candidate;
+        do {
+            candidate = String.format("RES-%03d", next++);
+        } while (reservationRepository.existsById(candidate));
+        return candidate;
     }
 
     private String clean(String value) {

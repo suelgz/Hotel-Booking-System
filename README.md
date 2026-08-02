@@ -1,6 +1,6 @@
-# Hotel Booking Management System
+# Hotel Operations Console
 
-A university-style full-stack hotel booking application with a Java 17 Spring Boot REST API and a React/Vite frontend. The project keeps the original object-oriented hotel concepts while adding clearer booking rules, validation, and a cleaner portfolio-ready structure.
+A full-stack hotel operations application with a Java 17 Spring Boot REST API, MySQL persistence, and a React/Vite frontend. The project keeps the original object-oriented hotel concepts while adding clearer booking rules, validation, database-backed storage, and a cleaner portfolio-ready structure.
 
 ## Technology Stack
 
@@ -10,9 +10,10 @@ Backend:
 - Maven
 - Spring Web
 - Spring Validation
-- JUnit 5
+- Spring Data JPA / Hibernate
+- MySQL Connector/J
+- JUnit 5 / Mockito
 - Docker
-- In-memory data storage
 
 Frontend:
 - React
@@ -24,6 +25,7 @@ Frontend:
 Deployment:
 - Vercel for the frontend
 - Render or another Docker-capable host for the backend API
+- MySQL for persistent backend storage
 
 ## Current Features
 
@@ -36,6 +38,7 @@ Deployment:
 - Date-based room availability checks
 - Overlap detection that allows back-to-back reservations
 - Reservation cancellation with room status refresh
+- MySQL-backed persistence for rooms, customers, reservations, and audit logs
 - Consistent JSON error responses
 - Simple health endpoint at `GET /api/health`
 - SPA routing support for Vercel refreshes
@@ -43,7 +46,7 @@ Deployment:
 ## Project Structure
 
 ```text
-Hotel-Booking-System/
+Hotel-Operations-Console/
 |-- backend/
 |   |-- Dockerfile
 |   |-- pom.xml
@@ -51,10 +54,12 @@ Hotel-Booking-System/
 |   |-- mvnw.cmd
 |   `-- src/
 |       |-- main/java/com/hotel/booking/
+|       |   |-- config/
 |       |   |-- controller/
 |       |   |-- dto/
 |       |   |-- exception/
 |       |   |-- model/
+|       |   |-- repository/
 |       |   `-- service/
 |       `-- test/java/com/hotel/booking/
 |-- frontend/
@@ -70,18 +75,35 @@ Hotel-Booking-System/
 
 ## Local Setup
 
-Backend:
+Backend database:
 
-```bash
-cd backend
-./mvnw spring-boot:run
+```sql
+CREATE DATABASE hotel_operations_console;
 ```
 
-On Windows PowerShell:
+Backend on Windows PowerShell:
 
 ```powershell
 cd backend
+$env:JAVA_HOME="C:\Program Files\Java\jdk-20"
+$env:MYSQL_PASSWORD="your_mysql_root_password"
 .\mvnw.cmd spring-boot:run
+```
+
+You can also create `backend/.env` for local development:
+
+```text
+MYSQL_PASSWORD=your_mysql_root_password
+```
+
+The `.env` file is ignored by Git and should not be committed.
+
+Backend on macOS/Linux:
+
+```bash
+cd backend
+export MYSQL_PASSWORD="your_mysql_root_password"
+./mvnw spring-boot:run
 ```
 
 The backend runs at:
@@ -110,9 +132,20 @@ Backend:
 
 ```text
 PORT=8080
+MYSQL_PASSWORD=your_mysql_root_password
 ```
 
-`PORT` is optional locally. Render can inject it when deployed.
+`PORT` is optional locally. `MYSQL_PASSWORD` is required when the MySQL root user has a password. The backend connects to:
+
+```text
+jdbc:mysql://localhost:3306/hotel_operations_console
+```
+
+with username:
+
+```text
+root
+```
 
 Frontend:
 
@@ -122,13 +155,15 @@ VITE_API_BASE_URL=http://localhost:8080/api
 
 If `VITE_API_BASE_URL` is not set, the frontend uses `http://localhost:8080/api`.
 
-
 ## Troubleshooting API Connection Errors
 
 If the frontend shows `Could not reach the hotel API`, the React app cannot reach the backend URL it was built with.
 
 For local development:
-- Start the backend first with `cd backend && .\mvnw.cmd spring-boot:run`.
+- Start MySQL first.
+- Confirm the `hotel_operations_console` database exists.
+- Set `MYSQL_PASSWORD` before starting the backend.
+- Start the backend with `cd backend && .\mvnw.cmd spring-boot:run`.
 - Start the frontend with `cd frontend && npm run dev`.
 - Keep `VITE_API_BASE_URL=http://localhost:8080/api` in `frontend/.env` if you create one.
 
@@ -136,6 +171,7 @@ For Vercel or another hosted frontend:
 - Set `VITE_API_BASE_URL` to the deployed backend URL, for example `https://your-render-service.onrender.com/api`.
 - Redeploy the frontend after changing this variable because Vite reads it at build time.
 - Check the backend directly at `/api/health`; it should return JSON with `"status":"ok"`.
+
 ## API Endpoint Summary
 
 ```text
@@ -209,7 +245,7 @@ cd backend
 ./mvnw package
 ```
 
-On Windows PowerShell, use `./mvnw.cmd` instead of `./mvnw`.
+On Windows PowerShell, use `./mvnw.cmd` instead of `./mvnw`. Use JDK 17 or a compatible newer JDK such as JDK 20. Java 24 can compile the app, but this project's Mockito/Byte Buddy test stack does not support Java 24 cleanly.
 
 ## Deployment Information
 
@@ -223,19 +259,19 @@ Backend deployment with Docker:
 - Build context: `backend`
 - Dockerfile: `backend/Dockerfile`
 - The app reads `server.port=${PORT:8080}` from `application.properties`
+- Set `MYSQL_PASSWORD` and provide a reachable MySQL database before deploying the backend
 
 ## Known Limitations
 
-- Data is stored in memory and resets when the backend restarts.
 - There is no authentication or role-based access.
-- There is no database persistence.
 - Payments are represented by simple OOP classes but are not part of the active API workflow.
 - The dashboard is operational and simple; it is not a reporting or analytics system.
+- Hibernate uses `ddl-auto=update` for portfolio/demo convenience; production systems should use migrations such as Flyway or Liquibase.
 
 ## Future Improvements
 
-- Add a small persistent database such as PostgreSQL or H2 for stored reservations.
 - Add login for staff users.
 - Add a clearer room calendar view.
 - Add reservation editing after creation.
 - Add basic payment status tracking if payment workflow becomes part of the app.
+- Add Flyway or Liquibase database migrations for production-style schema control.

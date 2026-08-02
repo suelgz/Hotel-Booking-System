@@ -1,37 +1,39 @@
 package com.hotel.booking.service;
 
 import com.hotel.booking.model.AuditLogEntry;
+import com.hotel.booking.repository.AuditLogRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class AuditLogService {
-    private final List<AuditLogEntry> entries = new ArrayList<>();
-    private final AtomicLong idCounter = new AtomicLong(1);
+    private final AuditLogRepository auditLogRepository;
 
+    public AuditLogService(AuditLogRepository auditLogRepository) {
+        this.auditLogRepository = auditLogRepository;
+    }
+
+    @Transactional
     public AuditLogEntry record(String action, String message, String type) {
         AuditLogEntry entry = new AuditLogEntry(
-                idCounter.getAndIncrement(),
+                null,
                 LocalDateTime.now(),
                 action,
                 message,
                 type
         );
-        entries.add(entry);
-        return entry;
+        return auditLogRepository.save(entry);
     }
 
+    @Transactional(readOnly = true)
     public List<AuditLogEntry> getAll() {
-        return entries.stream()
-                .sorted(Comparator.comparing(AuditLogEntry::getTimestamp).reversed())
-                .toList();
+        return auditLogRepository.findAllByOrderByTimestampDesc();
     }
 
+    @Transactional(readOnly = true)
     public List<AuditLogEntry> getRecent(int limit) {
         return getAll().stream().limit(limit).toList();
     }
