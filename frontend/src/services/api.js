@@ -1,6 +1,6 @@
 const rawBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const BASE_URL = normalizeBaseUrl(rawBaseUrl || "http://localhost:8080/api");
-const RETRY_DELAYS_MS = [1500, 3000, 6000];
+const RETRY_DELAYS_MS = [2000, 4000, 8000, 16000, 30000];
 
 async function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
