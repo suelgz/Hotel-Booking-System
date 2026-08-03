@@ -143,6 +143,8 @@ MYSQL_DATABASE=hotel_operations_console
 MYSQL_USER=root
 MYSQL_PASSWORD=your_mysql_password
 MYSQL_DATABASE_URL=jdbc:mysql://your-host:3306/hotel_operations_console
+MYSQL_URL=mysql://user:password@your-host:3306/hotel_operations_console
+DATABASE_URL=mysql://user:password@your-host:3306/hotel_operations_console
 SPRING_DATASOURCE_URL=jdbc:mysql://your-host:3306/hotel_operations_console
 CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:5173,http://localhost:3000,https://*.vercel.app
 ```
@@ -159,7 +161,7 @@ with username:
 root
 ```
 
-For Render or another hosted backend, do not use `localhost` for MySQL. Set either `MYSQL_DATABASE_URL` / `SPRING_DATASOURCE_URL`, or set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD` to your hosted MySQL database values.
+For Render or another hosted backend, do not use `localhost` for MySQL. Set either `MYSQL_DATABASE_URL`, `MYSQL_URL`, `DATABASE_URL`, or `SPRING_DATASOURCE_URL`, or set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD` to your hosted MySQL database values.
 
 Frontend:
 
@@ -275,7 +277,7 @@ Backend deployment with Docker:
 - Build context: `backend`
 - Dockerfile: `backend/Dockerfile`
 - The app reads `server.port=${PORT:8080}` from `application.properties`
-- Set hosted MySQL env vars before deploying: `MYSQL_DATABASE_URL` or `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD`
+- Set hosted MySQL env vars before deploying: `MYSQL_DATABASE_URL`, `MYSQL_URL`, `DATABASE_URL`, or `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD`
 
 ## Known Limitations
 
