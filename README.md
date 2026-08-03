@@ -90,10 +90,15 @@ $env:MYSQL_PASSWORD="your_mysql_root_password"
 .\mvnw.cmd spring-boot:run
 ```
 
-You can also create `backend/.env` for local development:
+You can also copy `backend/.env.example` to `backend/.env` for local development and fill in your own values:
 
 ```text
-MYSQL_PASSWORD=your_mysql_root_password
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=hotel_operations_console
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:5173,http://localhost:3000,https://*.vercel.app
 ```
 
 The `.env` file is ignored by Git and should not be committed.
@@ -132,10 +137,17 @@ Backend:
 
 ```text
 PORT=8080
-MYSQL_PASSWORD=your_mysql_root_password
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=hotel_operations_console
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DATABASE_URL=jdbc:mysql://your-host:3306/hotel_operations_console
+SPRING_DATASOURCE_URL=jdbc:mysql://your-host:3306/hotel_operations_console
+CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:5173,http://localhost:3000,https://*.vercel.app
 ```
 
-`PORT` is optional locally. `MYSQL_PASSWORD` is required when the MySQL root user has a password. The backend connects to:
+`PORT` is optional locally. For local MySQL, the defaults connect to:
 
 ```text
 jdbc:mysql://localhost:3306/hotel_operations_console
@@ -146,6 +158,8 @@ with username:
 ```text
 root
 ```
+
+For Render or another hosted backend, do not use `localhost` for MySQL. Set either `MYSQL_DATABASE_URL` / `SPRING_DATASOURCE_URL`, or set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD` to your hosted MySQL database values.
 
 Frontend:
 
@@ -170,6 +184,8 @@ For local development:
 For Vercel or another hosted frontend:
 - Set `VITE_API_BASE_URL` to the deployed backend URL, for example `https://your-render-service.onrender.com/api`.
 - Redeploy the frontend after changing this variable because Vite reads it at build time.
+- Make sure the Render backend has hosted MySQL environment variables. A local PC database at `localhost:3306` is not reachable from Render.
+- If the frontend uses a custom domain, add it to `CORS_ALLOWED_ORIGIN_PATTERNS` on the backend, separated by commas.
 - Check the backend directly at `/api/health`; it should return JSON with `"status":"ok"`.
 
 ## API Endpoint Summary
@@ -259,7 +275,7 @@ Backend deployment with Docker:
 - Build context: `backend`
 - Dockerfile: `backend/Dockerfile`
 - The app reads `server.port=${PORT:8080}` from `application.properties`
-- Set `MYSQL_PASSWORD` and provide a reachable MySQL database before deploying the backend
+- Set hosted MySQL env vars before deploying: `MYSQL_DATABASE_URL` or `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD`
 
 ## Known Limitations
 
